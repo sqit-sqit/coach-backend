@@ -11,7 +11,7 @@ app.add_middleware(
     # allow_origins=["*"],
     allow_origins=[
         "http://localhost:3000",  # dev
-        "https://walrus-app-xcv66.ondigitalocean.app/",  # produkcja
+        "https://walrus-app-xcv66.ondigitalocean.app",  # produkcja
     ],
     allow_credentials=True,
     allow_methods=["*"],
