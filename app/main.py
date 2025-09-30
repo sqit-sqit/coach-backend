@@ -7,7 +7,12 @@ app = FastAPI(title="Coach Backend")
 # CORS (żeby frontend z localhost:3000 mógł się łączyć)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    # allow_origins=["http://localhost:3000"],
+    # allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",  # dev
+        "https://walrus-app-xcv66.ondigitalocean.app/",  # produkcja
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
