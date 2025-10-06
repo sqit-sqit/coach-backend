@@ -81,7 +81,7 @@ def save_game_value(user_id: str, value: dict):
 # ---------- CHAT ----------
 # Import service_chat if it exists, otherwise create simple fallback
 try:
-    from .service_chat import chat_with_ai, stream_chat_with_ai
+    from .service_chat import chat_with_ai, stream_chat_with_ai, generate_summary
     CHAT_AVAILABLE = True
 except ImportError:
     CHAT_AVAILABLE = False
@@ -90,6 +90,14 @@ except ImportError:
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
+    mode: str = "chat"  # "chat" or "reflect"
+
+class SwitchModeRequest(BaseModel):
+    mode: str  # "chat" or "reflect"
+
+class SummaryRequest(BaseModel):
+    chat_history: list[dict] = []
+    reflection_history: list[dict] = []
 
 if CHAT_AVAILABLE:
     @router.post("/chat/{user_id}")
@@ -99,7 +107,8 @@ if CHAT_AVAILABLE:
         """
         response = chat_with_ai(
             user_message=req.message,
-            history=req.history
+            history=req.history,
+            mode=req.mode
         )
         return {"reply": response}
 
@@ -110,9 +119,42 @@ if CHAT_AVAILABLE:
         """
         generator = stream_chat_with_ai(
             user_message=req.message,
-            history=req.history
+            history=req.history,
+            mode=req.mode
         )
         return StreamingResponse(generator, media_type="text/plain; charset=utf-8")
+
+    @router.post("/chat/{user_id}/switch-mode")
+    def switch_mode_endpoint(user_id: str, req: SwitchModeRequest):
+        """
+        Przełącza tryb personality między 'chat' a 'reflect'.
+        """
+        # Tutaj można dodać logikę zapisywania trybu dla użytkownika
+        # Na razie zwracamy potwierdzenie
+        return {
+            "status": "success",
+            "mode": req.mode,
+            "message": f"Switched to {req.mode} mode"
+        }
+
+    @router.post("/chat/{user_id}/summary")
+    def generate_summary_endpoint(user_id: str, req: SummaryRequest):
+        """
+        Generuje podsumowanie sesji eksploracji wartości.
+        """
+        # Pobierz wybraną wartość użytkownika
+        chosen_value = service_init.get_chosen_value(user_id)
+        if not chosen_value:
+            return {"error": "No chosen value found for user"}
+        
+        # Wygeneruj podsumowanie
+        summary = generate_summary(
+            value=chosen_value,
+            chat_history=req.chat_history,
+            reflection_history=req.reflection_history
+        )
+        
+        return {"summary": summary}
 else:
     @router.post("/chat/{user_id}")
     def chat_endpoint_disabled(user_id: str, req: ChatRequest):
