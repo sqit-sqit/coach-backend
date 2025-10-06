@@ -24,7 +24,7 @@ def load_personality(file_name: str, value: str, prompt_template: str) -> str:
 
 
 # 🔹 Wczytywanie pliku z szablonem pytań
-def load_prompt_template(file_name: str = "deeper_questions.txt") -> str:
+def load_prompt_template(file_name: str = "value_deeper_questions.txt") -> str:
     base_dir = Path(__file__).resolve().parents[2] / "personality"
     file_path = base_dir / file_name
 
@@ -43,7 +43,7 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
 
     # Wczytaj personality + template
     prompt_template = load_prompt_template()
-    system_prompt = load_personality("value_chat.txt", value, prompt_template)
+    system_prompt = load_personality("value_personality_chat.txt", value, prompt_template)
 
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")
@@ -80,7 +80,7 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
         history = []
 
     prompt_template = load_prompt_template()
-    system_prompt = load_personality("value_chat.txt", value, prompt_template)
+    system_prompt = load_personality("value_personality_chat.txt", value, prompt_template)
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
