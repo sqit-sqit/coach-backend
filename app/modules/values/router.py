@@ -1,8 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from pathlib import Path
 from pydantic import BaseModel
-from . import service_init, schemas
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.modules.values.models import ValuesSession
+from . import service_init, schemas, service_chat
 
 router = APIRouter(tags=["values"])
 
@@ -79,14 +82,6 @@ def save_game_value(user_id: str, value: dict):
     return service_init.save_top_value(user_id, value["top_value"])
 
 # ---------- CHAT ----------
-# Import service_chat if it exists, otherwise create simple fallback
-try:
-    from .service_chat import chat_with_ai, stream_chat_with_ai, generate_summary
-    CHAT_AVAILABLE = True
-except ImportError:
-    CHAT_AVAILABLE = False
-    print("⚠️ Warning: service_chat.py not found - chat endpoints disabled")
-
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
@@ -99,67 +94,93 @@ class SummaryRequest(BaseModel):
     chat_history: list[dict] = []
     reflection_history: list[dict] = []
 
-if CHAT_AVAILABLE:
-    @router.post("/chat/{user_id}")
-    def chat_endpoint(user_id: str, req: ChatRequest):
-        """
-        Endpoint chatu z AI.
-        """
-        response = chat_with_ai(
-            user_message=req.message,
-            history=req.history,
-            mode=req.mode
-        )
-        return {"reply": response}
+@router.post("/chat/{user_id}")
+def chat_endpoint(user_id: str, req: ChatRequest, db: Session = Depends(get_db)):
+    """
+    Endpoint chatu z AI.
+    """
+    # Pobierz wybraną wartość
+    chosen_value = service_init.get_chosen_value(user_id) or "your value"
+    
+    response = service_chat.chat_with_ai(
+        user_message=req.message,
+        history=req.history,
+        value=chosen_value,
+        mode=req.mode,
+        user_id=user_id
+    )
+    return {"reply": response}
 
-    @router.post("/chat/{user_id}/stream")
-    def chat_stream_endpoint(user_id: str, req: ChatRequest):
-        """
-        Streamingowy endpoint chatu z AI. Zwraca strumień tekstu.
-        """
-        generator = stream_chat_with_ai(
-            user_message=req.message,
-            history=req.history,
-            mode=req.mode
-        )
-        return StreamingResponse(generator, media_type="text/plain; charset=utf-8")
+@router.post("/chat/{user_id}/stream")
+def chat_stream_endpoint(user_id: str, req: ChatRequest, db: Session = Depends(get_db)):
+    """
+    Streamingowy endpoint chatu z AI. Zwraca strumień tekstu.
+    """
+    # Pobierz wybraną wartość
+    chosen_value = service_init.get_chosen_value(user_id) or "your value"
+    
+    generator = service_chat.stream_chat_with_ai(
+        user_message=req.message,
+        history=req.history,
+        value=chosen_value,
+        mode=req.mode,
+        user_id=user_id
+    )
+    return StreamingResponse(generator, media_type="text/plain; charset=utf-8")
 
-    @router.post("/chat/{user_id}/switch-mode")
-    def switch_mode_endpoint(user_id: str, req: SwitchModeRequest):
-        """
-        Przełącza tryb personality między 'chat' a 'reflect'.
-        """
-        # Tutaj można dodać logikę zapisywania trybu dla użytkownika
-        # Na razie zwracamy potwierdzenie
-        return {
-            "status": "success",
-            "mode": req.mode,
-            "message": f"Switched to {req.mode} mode"
-        }
+@router.post("/chat/{user_id}/switch-mode")
+def switch_mode_endpoint(user_id: str, req: SwitchModeRequest):
+    """
+    Przełącza tryb personality między 'chat' a 'reflect'.
+    """
+    # Tutaj można dodać logikę zapisywania trybu dla użytkownika
+    # Na razie zwracamy potwierdzenie
+    return {
+        "status": "success",
+        "mode": req.mode,
+        "message": f"Switched to {req.mode} mode"
+    }
 
-    @router.post("/chat/{user_id}/summary")
-    def generate_summary_endpoint(user_id: str, req: SummaryRequest):
-        """
-        Generuje podsumowanie sesji eksploracji wartości.
-        """
-        # Pobierz wybraną wartość użytkownika
-        chosen_value = service_init.get_chosen_value(user_id)
-        if not chosen_value:
-            return {"error": "No chosen value found for user"}
-        
-        # Wygeneruj podsumowanie
-        summary = generate_summary(
-            value=chosen_value,
-            chat_history=req.chat_history,
-            reflection_history=req.reflection_history
-        )
-        
-        return {"summary": summary}
-else:
-    @router.post("/chat/{user_id}")
-    def chat_endpoint_disabled(user_id: str, req: ChatRequest):
-        return {"error": "Chat service not available"}
+@router.post("/chat/{user_id}/summary")
+def generate_summary_endpoint(user_id: str, req: SummaryRequest, db: Session = Depends(get_db)):
+    """
+    Generuje podsumowanie sesji eksploracji wartości.
+    """
+    # Pobierz wybraną wartość użytkownika
+    chosen_value = service_init.get_chosen_value(user_id)
+    if not chosen_value:
+        return {"error": "No chosen value found for user"}
+    
+    # Wygeneruj podsumowanie
+    summary = service_chat.generate_summary(
+        value=chosen_value,
+        chat_history=req.chat_history,
+        reflection_history=req.reflection_history
+    )
+    
+    # Zapisz podsumowanie do bazy
+    session = db.query(ValuesSession).filter(
+        ValuesSession.user_id == user_id,
+        ValuesSession.status == "in_progress"
+    ).first()
+    
+    if session:
+        service_chat.save_summary_to_db(user_id, session.session_id, summary)
+    
+    return {"summary": summary}
 
-    @router.post("/chat/{user_id}/stream")
-    def chat_stream_endpoint_disabled(user_id: str, req: ChatRequest):
-        return {"error": "Chat service not available"}
+@router.get("/chat/{user_id}/history")
+def get_chat_history(user_id: str, db: Session = Depends(get_db)):
+    """
+    Pobiera historię czatu z bazy danych.
+    """
+    session = db.query(ValuesSession).filter(
+        ValuesSession.user_id == user_id,
+        ValuesSession.status == "in_progress"
+    ).first()
+    
+    if not session:
+        return {"messages": []}
+    
+    history = service_chat.get_chat_history_from_db(db, user_id, session.session_id)
+    return {"messages": history}

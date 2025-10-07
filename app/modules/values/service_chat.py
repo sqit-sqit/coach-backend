@@ -3,6 +3,9 @@ import os
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.modules.values.models import ValuesSession, ValuesChatMessage
 from . import service_init
 
 # załaduj zmienne z .env
@@ -33,8 +36,68 @@ def load_prompt_template(file_name: str = "value_deeper_questions.txt") -> str:
     return file_path.read_text(encoding="utf-8")
 
 
+def save_chat_message(db: Session, user_id: str, session_id: str, role: str, content: str):
+    """Zapisuje wiadomość czatu do bazy danych"""
+    # Użyj prostego podejścia - nie licz wiadomości, użyj timestamp
+    message = ValuesChatMessage(
+        session_id=session_id,
+        role=role,
+        content=content,
+        message_order=0  # Tymczasowo 0, można później dodać logikę
+    )
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+    return message
+
+
+def get_or_create_values_session(db: Session, user_id: str) -> ValuesSession:
+    """Pobiera lub tworzy sesję values dla użytkownika"""
+    session = db.query(ValuesSession).filter(
+        ValuesSession.user_id == user_id,
+        ValuesSession.status == "in_progress"
+    ).first()
+    
+    if not session:
+        # Sprawdź czy istnieje sesja z tym samym session_id
+        existing_session = db.query(ValuesSession).filter(
+            ValuesSession.session_id == f"{user_id}-values-session"
+        ).first()
+        
+        if existing_session:
+            # Użyj istniejącej sesji i zaktualizuj status
+            existing_session.status = "in_progress"
+            session = existing_session
+        else:
+            # Utwórz nową sesję
+            session = ValuesSession(
+                user_id=user_id,
+                session_id=f"{user_id}-values-session",
+                status="in_progress"
+            )
+            db.add(session)
+        
+        db.commit()
+        db.refresh(session)
+    
+    return session
+
+
+def get_chat_history_from_db(db: Session, user_id: str, session_id: str) -> list[dict]:
+    """Pobiera historię czatu z bazy danych"""
+    messages = db.query(ValuesChatMessage).filter(
+        ValuesChatMessage.user_id == user_id,
+        ValuesChatMessage.session_id == session_id
+    ).order_by(ValuesChatMessage.timestamp).all()
+    
+    return [
+        {"role": msg.role, "content": msg.content}
+        for msg in messages
+    ]
+
+
 # 🔹 Główna funkcja czatu
-def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "your value", mode: str = "chat") -> str:
+def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "your value", mode: str = "chat", user_id: str = None) -> str:
     """
     Tworzy odpowiedź AI bazując na historii rozmowy i pliku osobowości.
     """
@@ -71,10 +134,27 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
         messages=messages,
     )
 
-    return completion.choices[0].message.content
+    response = completion.choices[0].message.content
+
+    # Zapisz wiadomości do bazy jeśli user_id jest podany
+    if user_id:
+        db = next(get_db())
+        try:
+            session = get_or_create_values_session(db, user_id)
+            
+            # Zapisz wiadomość użytkownika
+            save_chat_message(db, user_id, session.session_id, "user", user_message)
+            
+            # Zapisz odpowiedź AI
+            save_chat_message(db, user_id, session.session_id, "assistant", response)
+            
+        finally:
+            db.close()
+
+    return response
 
 
-def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, value: str = "your value", mode: str = "chat"):
+def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, value: str = "your value", mode: str = "chat", user_id: str = None):
     """
     Streamuje odpowiedź AI w kawałkach (chunkach) jako generator.
 
@@ -98,42 +178,51 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
     prompt_template = load_prompt_template(prompt_file)
     system_prompt = load_personality(personality_file, value, prompt_template)
 
+    # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set in .env")
 
     client = OpenAI(api_key=api_key)
 
+    # Zbuduj wiadomości dla modelu
     messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(history)
+    messages.extend(history)   # historia już ma role: user/assistant
     messages.append({"role": "user", "content": user_message})
 
+    # Wywołaj OpenAI ze streamingiem
     stream = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
-        stream=True,
+        stream=True
     )
 
-    for chunk in stream:
+    # Zbierz pełną odpowiedź dla zapisania do bazy
+    full_response = ""
+    
+    # Zapisz wiadomość użytkownika do bazy jeśli user_id jest podany
+    if user_id:
+        db = next(get_db())
         try:
-            choice = chunk.choices[0]
-        except Exception:
-            continue
+            session = get_or_create_values_session(db, user_id)
+            save_chat_message(db, user_id, session.session_id, "user", user_message)
+        finally:
+            db.close()
 
-        # `delta` moze zawierac tylko czesc contentu
-        delta = getattr(choice, "delta", None)
-        if not delta:
-            continue
+    for chunk in stream:
+        if chunk.choices[0].delta.content is not None:
+            content = chunk.choices[0].delta.content
+            full_response += content
+            yield content
 
-        content_piece = None
-        # SDK potrafi zwrócić obiekt z atrybutem `content` lub dict
-        if hasattr(delta, "content"):
-            content_piece = delta.content
-        elif isinstance(delta, dict):
-            content_piece = delta.get("content")
-
-        if content_piece:
-            yield content_piece
+    # Zapisz pełną odpowiedź AI do bazy jeśli user_id jest podany
+    if user_id and full_response:
+        db = next(get_db())
+        try:
+            session = get_or_create_values_session(db, user_id)
+            save_chat_message(db, user_id, session.session_id, "assistant", full_response)
+        finally:
+            db.close()
 
 
 def generate_summary(value: str, chat_history: list[dict], reflection_history: list[dict] = None) -> str:
@@ -200,3 +289,34 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
     )
     
     return completion.choices[0].message.content
+
+
+def save_summary_to_db(user_id: str, session_id: str, summary_text: str):
+    """Zapisuje podsumowanie do bazy danych"""
+    db = next(get_db())
+    try:
+        from app.modules.values.models import ValuesSummary
+        
+        # Sprawdź czy podsumowanie już istnieje
+        existing_summary = db.query(ValuesSummary).filter(
+            ValuesSummary.session_id == session_id
+        ).first()
+        
+        if existing_summary:
+            # Aktualizuj istniejące podsumowanie
+            existing_summary.summary_content = summary_text
+            db.commit()
+            db.refresh(existing_summary)
+            return existing_summary
+        else:
+            # Utwórz nowe podsumowanie
+            summary = ValuesSummary(
+                session_id=session_id,
+                summary_content=summary_text
+            )
+            db.add(summary)
+            db.commit()
+            db.refresh(summary)
+            return summary
+    finally:
+        db.close()
