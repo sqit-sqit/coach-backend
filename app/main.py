@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.modules.values import router as values_router
+from app.routers import auth
 
 app = FastAPI(title="Coach Backend")
 
@@ -18,5 +19,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Podpięcie routera Values
+# Podpięcie routerów
 app.include_router(values_router.router, prefix="/values", tags=["values"])
+app.include_router(auth.router, tags=["auth"])
