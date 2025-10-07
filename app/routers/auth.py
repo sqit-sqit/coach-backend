@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Header
 from fastapi.responses import RedirectResponse
 from google.auth.transport import requests
 from google.oauth2 import id_token
@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from jose import jwt
 from datetime import datetime, timedelta
 import requests as req
+from typing import Optional
 
 router = APIRouter()
 
@@ -23,6 +24,28 @@ def create_access_token(user_id: str):
         "exp": datetime.utcnow() + timedelta(days=7)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def get_current_user_from_token(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+    """Dependency do pobierania aktualnego użytkownika z Authorization header"""
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    try:
+        # Usuń "Bearer " prefix jeśli istnieje
+        token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+        
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        user_id = payload.get("user_id")
+        
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return user
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.get("/auth/google")
 def google_auth():
