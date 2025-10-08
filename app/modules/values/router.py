@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.core.models import User
 from app.routers.auth import get_current_user_from_token
 from app.modules.values.models import ValuesSession
-from . import service_init, schemas, service_chat
+from . import service_init, schemas, service_chat, service_feedback
 
 router = APIRouter(tags=["values"])
 
@@ -202,3 +202,42 @@ def get_chat_history(user_id: str, db: Session = Depends(get_db)):
     
     history = service_chat.get_chat_history_from_db(db, user_id, session.session_id)
     return {"messages": history}
+
+
+# ---------- FEEDBACK ----------
+@router.post("/feedback")
+def submit_feedback(feedback: schemas.FeedbackSubmit):
+    """
+    Zapisuje feedback od użytkownika.
+    Automatycznie pobiera dane użytkownika z init phase jeśli nie podano.
+    """
+    return service_feedback.save_feedback(
+        user_id=feedback.user_id,
+        session_id=feedback.session_id,
+        name=feedback.name,
+        age_range=feedback.age_range,
+        interests=feedback.interests,
+        rating=feedback.rating,
+        liked_text=feedback.liked_text,
+        liked_chips=feedback.liked_chips,
+        disliked_text=feedback.disliked_text,
+        disliked_chips=feedback.disliked_chips,
+        additional_feedback=feedback.additional_feedback
+    )
+
+@router.get("/feedback/{user_id}")
+def get_user_feedback(user_id: str):
+    """
+    Pobiera feedback dla danego użytkownika.
+    """
+    feedback = service_feedback.get_feedback(user_id)
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+    return feedback
+
+@router.get("/feedback")
+def get_all_feedback_data(limit: int = 100, offset: int = 0):
+    """
+    Pobiera wszystkie feedbacki (dla admina).
+    """
+    return service_feedback.get_all_feedback(limit=limit, offset=offset)

@@ -50,3 +50,29 @@ class ValuesSummary(Base):
     
     # Relationships
     session = relationship("ValuesSession", back_populates="summary")
+
+class Feedback(Base):
+    """User feedback from values workshop"""
+    __tablename__ = "feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    session_id = Column(String(255), nullable=True, index=True)  # link to values session if available
+    
+    # User info from init step 4
+    name = Column(String(255), nullable=True)
+    age_range = Column(String(100), nullable=True)  # e.g., "18-25", "26-35", etc.
+    interests = Column(JSON, nullable=True)  # array of interests
+    
+    # Feedback form data
+    rating = Column(Integer, nullable=True)  # 1-5 stars
+    liked_text = Column(Text, nullable=True)  # free text about what they liked
+    liked_chips = Column(JSON, nullable=True)  # selected chips for liked
+    disliked_text = Column(Text, nullable=True)  # free text about what they didn't like
+    disliked_chips = Column(JSON, nullable=True)  # selected chips for disliked
+    additional_feedback = Column(Text, nullable=True)  # "Tell us more" section
+    
+    # Metadata
+    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
+    ip_address = Column(String(45), nullable=True)  # for analytics (optional)
+    user_agent = Column(Text, nullable=True)  # for analytics (optional)
