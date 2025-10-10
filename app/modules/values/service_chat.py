@@ -1,5 +1,6 @@
 # app/modules/values/service_chat.py
 import os
+import yaml
 from pathlib import Path
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -27,12 +28,51 @@ def load_personality(file_name: str, value: str, prompt_template: str) -> str:
 
 
 # 🔹 Wczytywanie pliku z szablonem pytań
-def load_prompt_template(file_name: str = "value_deeper_questions.txt") -> str:
+def load_prompt_template(file_name: str = "value_deeper_questions.yaml") -> str:
     base_dir = Path(__file__).resolve().parents[2] / "personality"
     file_path = base_dir / file_name
 
     if not file_path.exists():
         return ""
+    
+    # Obsługa plików YAML
+    if file_name.endswith('.yaml') or file_name.endswith('.yml'):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+        
+        # Konwertuj YAML na tekst formatowany
+        result = []
+        
+        # Sprawdź czy to lista sekcji (wielosekcyjny format) czy jedna sekcja
+        if isinstance(data, list):
+            # Format wielosekcyjny (jak value_deeper_questions.yaml)
+            for section in data:
+                result.append(f"## {section['section']}")
+                result.append(f"### {section['title']}")
+                if 'intro' in section:
+                    result.append(section['intro'])
+                if 'questions' in section:
+                    for question in section['questions']:
+                        result.append(f"- {question}")
+                if 'reflection' in section:
+                    result.append(f"\n**Reflection:** {section['reflection']}")
+                result.append("")  # Pusta linia między sekcjami
+        else:
+            # Format jednosekcyjny (jak value_session_reflect_questions.yaml)
+            section = data
+            result.append(f"## {section['section']}")
+            result.append(f"### {section['title']}")
+            if 'intro' in section:
+                result.append(section['intro'])
+            if 'questions' in section:
+                for question in section['questions']:
+                    result.append(f"- {question}")
+            if 'reflection' in section:
+                result.append(f"\n**Reflection:** {section['reflection']}")
+        
+        return "\n".join(result)
+    
+    # Obsługa plików TXT (fallback)
     return file_path.read_text(encoding="utf-8")
 
 
@@ -107,10 +147,10 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
     # Wybierz odpowiednie pliki w zależności od trybu
     if mode == "reflect":
         personality_file = "value_personality_session_reflect.txt"
-        prompt_file = "value_session_reflect_questions.txt"
+        prompt_file = "value_session_reflect_questions.yaml"
     else:  # default "chat"
         personality_file = "value_personality_chat.txt"
-        prompt_file = "value_deeper_questions.txt"
+        prompt_file = "value_deeper_questions.yaml"
 
     # Wczytaj personality + template
     prompt_template = load_prompt_template(prompt_file)
@@ -126,7 +166,17 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
     # Zbuduj wiadomości dla modelu
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)   # historia już ma role: user/assistant
-    messages.append({"role": "user", "content": user_message})
+    
+    # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
+    if not user_message.strip():
+        if mode == "reflect":
+            # Rozpoczęcie sesji refleksji - AI powinno zacząć od intro z YAML
+            messages.append({"role": "user", "content": f"Start the reflection session for the value '{value}'. Begin with the intro from the YAML template."})
+        else:
+            # Rozpoczęcie sesji chat - AI powinno zacząć od intro z YAML
+            messages.append({"role": "user", "content": f"Start the values workshop for the value '{value}'. Begin with the first question from the YAML template."})
+    else:
+        messages.append({"role": "user", "content": user_message})
 
     # Wywołaj OpenAI
     completion = client.chat.completions.create(
@@ -170,10 +220,10 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
     # Wybierz odpowiednie pliki w zależności od trybu
     if mode == "reflect":
         personality_file = "value_personality_session_reflect.txt"
-        prompt_file = "value_session_reflect_questions.txt"
+        prompt_file = "value_session_reflect_questions.yaml"
     else:  # default "chat"
         personality_file = "value_personality_chat.txt"
-        prompt_file = "value_deeper_questions.txt"
+        prompt_file = "value_deeper_questions.yaml"
 
     prompt_template = load_prompt_template(prompt_file)
     system_prompt = load_personality(personality_file, value, prompt_template)
@@ -188,7 +238,17 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
     # Zbuduj wiadomości dla modelu
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)   # historia już ma role: user/assistant
-    messages.append({"role": "user", "content": user_message})
+    
+    # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
+    if not user_message.strip():
+        if mode == "reflect":
+            # Rozpoczęcie sesji refleksji - AI powinno zacząć od intro z YAML
+            messages.append({"role": "user", "content": f"Start the reflection session for the value '{value}'. Begin with the intro from the YAML template."})
+        else:
+            # Rozpoczęcie sesji chat - AI powinno zacząć od intro z YAML
+            messages.append({"role": "user", "content": f"Start the values workshop for the value '{value}'. Begin with the first question from the YAML template."})
+    else:
+        messages.append({"role": "user", "content": user_message})
 
     # Wywołaj OpenAI ze streamingiem
     stream = client.chat.completions.create(

@@ -27,12 +27,15 @@ def save_feedback(
     Jeśli nie podano danych użytkownika (name, age_range, interests), 
     spróbuje je pobrać z progress data z init phase.
     """
+    print(f">>> SAVE_FEEDBACK CALLED: user_id={user_id}, rating={rating}")
     db = next(get_db())
     try:
         # Jeśli nie podano danych użytkownika, spróbuj pobrać z progress
         if not name or not age_range or not interests:
+            print(f">>> FETCHING INIT DATA for user_id={user_id}")
             progress_data = get_progress(user_id, "init")
             init_data = progress_data.get("data", {})
+            print(f">>> INIT DATA: {init_data}")
             
             if not name:
                 name = init_data.get("name")

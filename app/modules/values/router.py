@@ -211,19 +211,26 @@ def submit_feedback(feedback: schemas.FeedbackSubmit):
     Zapisuje feedback od użytkownika.
     Automatycznie pobiera dane użytkownika z init phase jeśli nie podano.
     """
-    return service_feedback.save_feedback(
-        user_id=feedback.user_id,
-        session_id=feedback.session_id,
-        name=feedback.name,
-        age_range=feedback.age_range,
-        interests=feedback.interests,
-        rating=feedback.rating,
-        liked_text=feedback.liked_text,
-        liked_chips=feedback.liked_chips,
-        disliked_text=feedback.disliked_text,
-        disliked_chips=feedback.disliked_chips,
-        additional_feedback=feedback.additional_feedback
-    )
+    print(f">>> FEEDBACK ENDPOINT CALLED: user_id={feedback.user_id}, rating={feedback.rating}")
+    try:
+        result = service_feedback.save_feedback(
+            user_id=feedback.user_id,
+            session_id=feedback.session_id,
+            name=feedback.name,
+            age_range=feedback.age_range,
+            interests=feedback.interests,
+            rating=feedback.rating,
+            liked_text=feedback.liked_text,
+            liked_chips=feedback.liked_chips,
+            disliked_text=feedback.disliked_text,
+            disliked_chips=feedback.disliked_chips,
+            additional_feedback=feedback.additional_feedback
+        )
+        print(f">>> FEEDBACK SAVED SUCCESSFULLY: {result}")
+        return result
+    except Exception as e:
+        print(f">>> FEEDBACK ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to save feedback: {str(e)}")
 
 @router.get("/feedback/{user_id}")
 def get_user_feedback(user_id: str):
