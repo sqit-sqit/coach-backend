@@ -31,11 +31,9 @@ def save_selected(progress: schemas.ValuesSelect):
     return service_init.save_selected_values(progress.user_id, progress.selected_values)
 
 @router.get("/select/{user_id}")
-def get_selected(user_id: str, current_user: User = Depends(get_current_user_from_token)):
-    # Sprawdź czy user_id w URL odpowiada zalogowanemu użytkownikowi
-    if current_user.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
+def get_selected(user_id: str):
+    # Allow both authenticated users and guests
+    # Guest users have IDs starting with "guest-"
     return {"selected_values": service_init.get_selected_values(user_id)}
 
 # ---------- REDUCE ----------
@@ -101,13 +99,11 @@ class SummaryRequest(BaseModel):
     reflection_history: list[dict] = []
 
 @router.post("/chat/{user_id}")
-def chat_endpoint(user_id: str, req: ChatRequest, current_user: User = Depends(get_current_user_from_token), db: Session = Depends(get_db)):
+def chat_endpoint(user_id: str, req: ChatRequest, db: Session = Depends(get_db)):
     """
     Endpoint chatu z AI.
+    Allow both authenticated users and guests.
     """
-    # Sprawdź czy user_id w URL odpowiada zalogowanemu użytkownikowi
-    if current_user.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
     
     # Pobierz wybraną wartość
     chosen_value = service_init.get_chosen_value(user_id) or "your value"
@@ -122,13 +118,11 @@ def chat_endpoint(user_id: str, req: ChatRequest, current_user: User = Depends(g
     return {"reply": response}
 
 @router.post("/chat/{user_id}/stream")
-def chat_stream_endpoint(user_id: str, req: ChatRequest, current_user: User = Depends(get_current_user_from_token), db: Session = Depends(get_db)):
+def chat_stream_endpoint(user_id: str, req: ChatRequest, db: Session = Depends(get_db)):
     """
     Streamingowy endpoint chatu z AI. Zwraca strumień tekstu.
+    Allow both authenticated users and guests.
     """
-    # Sprawdź czy user_id w URL odpowiada zalogowanemu użytkownikowi
-    if current_user.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
     
     # Pobierz wybraną wartość
     chosen_value = service_init.get_chosen_value(user_id) or "your value"
@@ -156,13 +150,11 @@ def switch_mode_endpoint(user_id: str, req: SwitchModeRequest):
     }
 
 @router.post("/chat/{user_id}/summary")
-def generate_summary_endpoint(user_id: str, req: SummaryRequest, current_user: User = Depends(get_current_user_from_token), db: Session = Depends(get_db)):
+def generate_summary_endpoint(user_id: str, req: SummaryRequest, db: Session = Depends(get_db)):
     """
     Generuje podsumowanie sesji eksploracji wartości.
+    Allow both authenticated users and guests.
     """
-    # Sprawdź czy user_id w URL odpowiada zalogowanemu użytkownikowi
-    if current_user.user_id != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
     
     # Pobierz wybraną wartość użytkownika
     chosen_value = service_init.get_chosen_value(user_id)

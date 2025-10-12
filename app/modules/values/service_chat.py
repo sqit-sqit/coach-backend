@@ -13,9 +13,9 @@ from . import service_init
 load_dotenv()
 
 # 🔹 Wczytywanie pliku osobowości
-def load_personality(file_name: str, value: str, prompt_template: str) -> str:
+def load_personality(file_name: str, value: str, prompt_template: str, user_name: str = "Guest") -> str:
     """
-    Ładuje osobowość z pliku i podstawia zmienne {value} oraz {prompt_template}.
+    Ładuje osobowość z pliku i podstawia zmienne {value}, {prompt_template}, i {name}.
     """
     base_dir = Path(__file__).resolve().parents[2] / "personality"
     file_path = base_dir / file_name
@@ -24,7 +24,12 @@ def load_personality(file_name: str, value: str, prompt_template: str) -> str:
         return "You are a helpful assistant."
 
     raw = file_path.read_text(encoding="utf-8")
-    return raw.replace("{value}", value).replace("{prompt_template}", prompt_template)
+    return (raw
+        .replace("{value}", value)
+        .replace("{prompt_template}", prompt_template)
+        .replace("{name}", user_name)
+        .replace("{wartosc}", value)  # dla polskich pytań w YAML
+    )
 
 
 # 🔹 Wczytywanie pliku z szablonem pytań
@@ -123,6 +128,19 @@ def get_or_create_values_session(db: Session, user_id: str) -> ValuesSession:
     return session
 
 
+def get_user_name(user_id: str) -> str:
+    """
+    Pobiera imię użytkownika z init data.
+    Zwraca "Guest" jeśli nie znaleziono.
+    """
+    try:
+        init_data = service_init.get_progress(user_id, "init")
+        name = init_data.get("data", {}).get("name", "Guest")
+        return name if name else "Guest"
+    except:
+        return "Guest"
+
+
 def get_chat_history_from_db(db: Session, user_id: str, session_id: str) -> list[dict]:
     """Pobiera historię czatu z bazy danych"""
     messages = db.query(ValuesChatMessage).filter(
@@ -152,9 +170,12 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
         personality_file = "value_personality_chat.txt"
         prompt_file = "value_deeper_questions.yaml"
 
+    # Pobierz imię użytkownika z init data
+    user_name = get_user_name(user_id) if user_id else "Guest"
+    
     # Wczytaj personality + template
     prompt_template = load_prompt_template(prompt_file)
-    system_prompt = load_personality(personality_file, value, prompt_template)
+    system_prompt = load_personality(personality_file, value, prompt_template, user_name)
 
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")
@@ -225,8 +246,11 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
         personality_file = "value_personality_chat.txt"
         prompt_file = "value_deeper_questions.yaml"
 
+    # Pobierz imię użytkownika z init data
+    user_name = get_user_name(user_id) if user_id else "Guest"
+    
     prompt_template = load_prompt_template(prompt_file)
-    system_prompt = load_personality(personality_file, value, prompt_template)
+    system_prompt = load_personality(personality_file, value, prompt_template, user_name)
 
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")

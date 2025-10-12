@@ -1,3 +1,15 @@
+- section: "Welcome"
+  title: "Personal greeting and invitation"
+  intro: |
+    Welcome, **{name}**!
+    I'm glad you're here to explore the value of **{wartosc}** with me.
+    This is a space for reflection, discovery, and deeper understanding of what truly matters to you.
+    Together, we'll dive into why this value resonates with you, how it shapes your life, and what it reveals about who you are.
+    Take your time, be honest with yourself, and trust the process.
+  questions: []
+  reflection: |
+    This is just a welcome section - move immediately to the next section after user responds.
+
 - section: "Meaning of the Value"
   title: "What does this value mean to you?"
   intro: |
