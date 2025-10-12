@@ -205,13 +205,14 @@ def get_reduced_values(user_id: str) -> list[str]:
 def save_chosen_value(user_id: str, value: str):
     """
     Zapisuje pojedynczą wybraną wartość w fazie CHOOSE.
+    Sesja pozostaje in_progress do momentu wygenerowania podsumowania.
     """
     db = next(get_db())
     try:
         # Zapisz w ValuesSession
         session = get_or_create_values_session(db, user_id, f"{user_id}-values-session")
         session.chosen_value = value
-        session.status = "completed"
+        # Status pozostaje "in_progress" - completed będzie gdy podsumowanie zostanie wygenerowane
         db.commit()
         
         # Zapisz też w progress

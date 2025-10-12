@@ -175,31 +175,63 @@ def delete_account(
             Feedback
         )
         
-        # 1. Usuń wszystkie wiadomości czatu
+        print(f"🗑️  Deleting account for user_id: {user_id}")
+        
+        # 1. Usuń wszystkie wiadomości czatu i summaries
         sessions = db.query(ValuesSession).filter(ValuesSession.user_id == user_id).all()
+        print(f"   Found {len(sessions)} sessions to delete")
+        
         for session in sessions:
-            db.query(ValuesChatMessage).filter(
-                ValuesChatMessage.session_id == session.session_id
-            ).delete()
+            # Delete messages in batches for large datasets
+            batch_size = 100
+            while True:
+                messages_batch = db.query(ValuesChatMessage).filter(
+                    ValuesChatMessage.session_id == session.session_id
+                ).limit(batch_size).all()
+                
+                if not messages_batch:
+                    break
+                
+                for msg in messages_batch:
+                    db.delete(msg)
+                
+                db.flush()  # Flush after each batch
+                print(f"   Deleted batch of {len(messages_batch)} messages")
             
-            # 2. Usuń summaries
-            db.query(ValuesSummary).filter(
+            # Delete summaries
+            summary = db.query(ValuesSummary).filter(
                 ValuesSummary.session_id == session.session_id
-            ).delete()
+            ).first()
+            if summary:
+                db.delete(summary)
+                print(f"   Deleted summary from session {session.session_id}")
         
         # 3. Usuń sesje wartości
-        db.query(ValuesSession).filter(ValuesSession.user_id == user_id).delete()
+        session_count = db.query(ValuesSession).filter(
+            ValuesSession.user_id == user_id
+        ).delete(synchronize_session=False)
+        print(f"   Deleted {session_count} sessions")
         
         # 4. Usuń feedback
-        db.query(Feedback).filter(Feedback.user_id == user_id).delete()
+        feedback_count = db.query(Feedback).filter(
+            Feedback.user_id == user_id
+        ).delete(synchronize_session=False)
+        print(f"   Deleted {feedback_count} feedback entries")
         
         # 5. Usuń app sessions
-        db.query(AppSession).filter(AppSession.user_id == user_id).delete()
+        app_session_count = db.query(AppSession).filter(
+            AppSession.user_id == user_id
+        ).delete(synchronize_session=False)
+        print(f"   Deleted {app_session_count} app sessions")
         
         # 6. Usuń użytkownika
-        db.query(User).filter(User.user_id == user_id).delete()
+        user_count = db.query(User).filter(
+            User.user_id == user_id
+        ).delete(synchronize_session=False)
+        print(f"   Deleted {user_count} user records")
         
         db.commit()
+        print("✅ Account deletion completed successfully")
         
         return {
             "message": "Account deleted successfully",
@@ -207,6 +239,9 @@ def delete_account(
         }
         
     except Exception as e:
+        print(f"❌ Error deleting account: {str(e)}")
+        import traceback
+        traceback.print_exc()
         db.rollback()
         raise HTTPException(
             status_code=500, 

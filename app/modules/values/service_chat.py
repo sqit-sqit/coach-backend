@@ -376,10 +376,11 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
 
 
 def save_summary_to_db(user_id: str, session_id: str, summary_text: str):
-    """Zapisuje podsumowanie do bazy danych"""
+    """Zapisuje podsumowanie do bazy danych i oznacza sesję jako completed"""
+    from datetime import datetime
     db = next(get_db())
     try:
-        from app.modules.values.models import ValuesSummary
+        from app.modules.values.models import ValuesSummary, ValuesSession
         
         # Sprawdź czy podsumowanie już istnieje
         existing_summary = db.query(ValuesSummary).filter(
@@ -389,9 +390,6 @@ def save_summary_to_db(user_id: str, session_id: str, summary_text: str):
         if existing_summary:
             # Aktualizuj istniejące podsumowanie
             existing_summary.summary_content = summary_text
-            db.commit()
-            db.refresh(existing_summary)
-            return existing_summary
         else:
             # Utwórz nowe podsumowanie
             summary = ValuesSummary(
@@ -399,7 +397,22 @@ def save_summary_to_db(user_id: str, session_id: str, summary_text: str):
                 summary_content=summary_text
             )
             db.add(summary)
-            db.commit()
+        
+        # WAŻNE: Oznacz sesję jako completed i ustaw ended_at
+        session = db.query(ValuesSession).filter(
+            ValuesSession.session_id == session_id
+        ).first()
+        
+        if session:
+            session.status = "completed"
+            session.ended_at = datetime.now()
+        
+        db.commit()
+        
+        if existing_summary:
+            db.refresh(existing_summary)
+            return existing_summary
+        else:
             db.refresh(summary)
             return summary
     finally:
