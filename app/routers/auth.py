@@ -167,7 +167,7 @@ def delete_account(
         user_id = current_user.user_id
         
         # Import models
-        from app.core.models import AppSession
+        from app.core.models import AppSession, UserApp
         from app.modules.values.models import (
             ValuesSession, 
             ValuesChatMessage, 
@@ -228,7 +228,13 @@ def delete_account(
         ).delete(synchronize_session=False)
         print(f"   Deleted {app_session_count} app sessions")
         
-        # 6. Usuń użytkownika
+        # 6. Usuń user apps (foreign key do users)
+        user_app_count = db.query(UserApp).filter(
+            UserApp.user_id == user_id
+        ).delete(synchronize_session=False)
+        print(f"   Deleted {user_app_count} user app records")
+        
+        # 7. Usuń użytkownika (na końcu, po usunięciu wszystkich FK)
         user_count = db.query(User).filter(
             User.user_id == user_id
         ).delete(synchronize_session=False)
