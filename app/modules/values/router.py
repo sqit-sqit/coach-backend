@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, StreamingResponse
 from pathlib import Path
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from app.core.database import get_db
-from app.core.models import User
+from app.core.models import User, AppSession
 from app.routers.auth import get_current_user_from_token
-from app.modules.values.models import ValuesSession
+from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary
 from . import service_init, schemas, service_chat, service_feedback
 
 router = APIRouter(tags=["values"])
@@ -194,6 +195,62 @@ def get_chat_history(user_id: str, db: Session = Depends(get_db)):
     
     history = service_chat.get_chat_history_from_db(db, user_id, session.session_id)
     return {"messages": history}
+
+
+# ---------- USER DASHBOARD ----------
+@router.get("/user/{user_id}/dashboard")
+def get_user_dashboard(user_id: str, db: Session = Depends(get_db)):
+    """
+    Zwraca dane dla dashboard użytkownika:
+    - Historia sesji wartości
+    - Statystyki
+    - Progress
+    """
+    # Pobierz wszystkie sesje wartości użytkownika
+    sessions = db.query(ValuesSession).filter(
+        ValuesSession.user_id == user_id
+    ).order_by(desc(ValuesSession.started_at)).all()
+    
+    # Pobierz app session dla user info
+    app_session = db.query(AppSession).filter(
+        AppSession.user_id == user_id,
+        AppSession.app_name == "values",
+        AppSession.status == "active"
+    ).first()
+    
+    result = {
+        "user_id": user_id,
+        "total_sessions": len(sessions),
+        "completed_sessions": len([s for s in sessions if s.status == "completed"]),
+        "sessions": []
+    }
+    
+    for session in sessions:
+        # Pobierz message count
+        message_count = db.query(ValuesChatMessage).filter(
+            ValuesChatMessage.session_id == session.session_id
+        ).count()
+        
+        # Pobierz summary
+        summary = db.query(ValuesSummary).filter(
+            ValuesSummary.session_id == session.session_id
+        ).first()
+        
+        result["sessions"].append({
+            "session_id": session.session_id,
+            "chosen_value": session.chosen_value,
+            "started_at": session.started_at.isoformat() if session.started_at else None,
+            "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+            "status": session.status,
+            "message_count": message_count,
+            "has_summary": summary is not None
+        })
+    
+    # Dodaj progress info z app_session
+    if app_session and app_session.session_data:
+        result["current_progress"] = app_session.session_data
+    
+    return result
 
 
 # ---------- FEEDBACK ----------

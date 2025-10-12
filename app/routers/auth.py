@@ -153,3 +153,62 @@ def get_current_user(token: str, db: Session = Depends(get_db)):
 def logout():
     """Wylogowanie użytkownika (frontend usuwa token)"""
     return {"message": "Logged out successfully"}
+
+@router.delete("/auth/delete-account")
+def delete_account(
+    current_user: User = Depends(get_current_user_from_token),
+    db: Session = Depends(get_db)
+):
+    """
+    Usuwa konto użytkownika i wszystkie powiązane dane.
+    UWAGA: Operacja nieodwracalna!
+    """
+    try:
+        user_id = current_user.user_id
+        
+        # Import models
+        from app.core.models import AppSession
+        from app.modules.values.models import (
+            ValuesSession, 
+            ValuesChatMessage, 
+            ValuesSummary,
+            Feedback
+        )
+        
+        # 1. Usuń wszystkie wiadomości czatu
+        sessions = db.query(ValuesSession).filter(ValuesSession.user_id == user_id).all()
+        for session in sessions:
+            db.query(ValuesChatMessage).filter(
+                ValuesChatMessage.session_id == session.session_id
+            ).delete()
+            
+            # 2. Usuń summaries
+            db.query(ValuesSummary).filter(
+                ValuesSummary.session_id == session.session_id
+            ).delete()
+        
+        # 3. Usuń sesje wartości
+        db.query(ValuesSession).filter(ValuesSession.user_id == user_id).delete()
+        
+        # 4. Usuń feedback
+        db.query(Feedback).filter(Feedback.user_id == user_id).delete()
+        
+        # 5. Usuń app sessions
+        db.query(AppSession).filter(AppSession.user_id == user_id).delete()
+        
+        # 6. Usuń użytkownika
+        db.query(User).filter(User.user_id == user_id).delete()
+        
+        db.commit()
+        
+        return {
+            "message": "Account deleted successfully",
+            "deleted_user_id": user_id
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error deleting account: {str(e)}"
+        )

@@ -34,14 +34,18 @@ DO NOT skip section 2 "Meaning of the Value" - it is the NEXT section after Welc
 **HOW TO START A NEW SECTION:**
 When starting ANY section (including the very first message):
 1. Copy and paste ONLY the **intro** paragraph from that section WORD-FOR-WORD
-2. Add a BLANK LINE (press Enter twice)
-3. Add a simple invitation: "Would you like to explore this together?"
-4. Wait for user response
-5. Only after the user responds, ask a question inspired by that section
+2. PRESERVE the line breaks - each sentence should be on a NEW LINE as it appears in the template
+3. Add a BLANK LINE (press Enter twice) after the intro
+4. Add a simple invitation: "Would you like to explore this together?"
+5. Wait for user response
+6. Only after the user responds, ask a question inspired by that section
 
-**CRITICAL: DO NOT copy the "questions" list from the YAML!**
-The questions field (lines starting with "-") is ONLY for your inspiration.
-When presenting an intro, copy ONLY the paragraph under "intro:", NOT the bullet points under "questions:".
+**CRITICAL FORMATTING RULES:**
+- DO NOT merge sentences into one paragraph - keep them on separate lines
+- PRESERVE all line breaks from the original intro
+- Each sentence from the YAML should be on its own line
+- Add proper spacing between sentences
+- DO NOT copy the "questions" list (lines starting with "-") - those are ONLY for your inspiration
 
 **EXAMPLE OF CORRECT FIRST MESSAGE:**
 ```
