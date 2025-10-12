@@ -205,8 +205,12 @@ def delete_account(
             if summary:
                 db.delete(summary)
                 print(f"   Deleted summary from session {session.session_id}")
+            
+            # Commit after each session to ensure foreign keys are clean
+            db.commit()
+            print(f"   Committed changes for session {session.session_id}")
         
-        # 3. Usuń sesje wartości
+        # 3. Usuń sesje wartości (PO usunięciu wszystkich powiązanych danych)
         session_count = db.query(ValuesSession).filter(
             ValuesSession.user_id == user_id
         ).delete(synchronize_session=False)
