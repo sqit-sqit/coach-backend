@@ -309,7 +309,7 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
             db.close()
 
 
-def generate_summary(value: str, chat_history: list[dict], reflection_history: list[dict] = None) -> str:
+def generate_summary(value: str, chat_history: list[dict], reflection_history: list[dict] = None, user_id: str = None) -> str:
     """
     Generuje podsumowanie sesji eksploracji wartości.
     
@@ -317,6 +317,7 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
         value: Wybrana wartość użytkownika
         chat_history: Historia czatu z fazy eksploracji wartości
         reflection_history: Historia z fazy refleksji (opcjonalna)
+        user_id: ID użytkownika do pobrania imienia z init data
     
     Returns:
         Wygenerowane podsumowanie jako string
@@ -329,6 +330,9 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
         return "Summary generation prompt not found."
     
     summary_prompt = summary_prompt_file.read_text(encoding="utf-8")
+    
+    # Pobierz imię użytkownika z init data
+    user_name = get_user_name(user_id) if user_id else "Guest"
     
     # Przygotuj historię czatu jako tekst
     chat_text = ""
@@ -355,6 +359,7 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
     final_prompt = summary_prompt.replace("{wartosc}", value)
     final_prompt = final_prompt.replace("{chat_history}", chat_text)
     final_prompt = final_prompt.replace("{reflection_history}", reflection_text)
+    final_prompt = final_prompt.replace("{user_name}", user_name)
     
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")

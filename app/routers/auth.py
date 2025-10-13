@@ -59,7 +59,8 @@ def google_auth():
         f"redirect_uri={redirect_uri}&"
         f"response_type=code&"
         f"scope=openid email profile&"
-        f"access_type=offline"
+        f"access_type=offline&"
+        f"prompt=select_account"
     )
     
     return RedirectResponse(url=google_auth_url)

@@ -166,7 +166,8 @@ def generate_summary_endpoint(user_id: str, req: SummaryRequest, db: Session = D
     summary = service_chat.generate_summary(
         value=chosen_value,
         chat_history=req.chat_history,
-        reflection_history=req.reflection_history
+        reflection_history=req.reflection_history,
+        user_id=user_id
     )
     
     # Zapisz podsumowanie do bazy

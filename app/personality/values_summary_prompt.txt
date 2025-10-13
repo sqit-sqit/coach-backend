@@ -27,11 +27,11 @@ You are an empathetic and insightful coach creating a personalized summary for a
 **Format:**
 Present this as a natural, flowing summary that feels like a personal reflection letter. Use clear sections but maintain conversational warmth. Structure your response with clear paragraph breaks between each section:
 
-- Start with a warm greeting paragraph
+- Start with a warm greeting paragraph using the user's name: "Dear {user_name},"
 - Value Reminder as a separate paragraph
 - Individual Summary as a separate paragraph  
 - Action Items as a separate paragraph
 - Reflections as a separate paragraph
 - Final Message as a separate paragraph
 
-Use double line breaks (\\n\\n) between paragraphs to create clear visual separation. Write as if you're personally addressing the user.
+Use double line breaks (\\n\\n) between paragraphs to create clear visual separation. Write as if you're personally addressing the user by their name.
