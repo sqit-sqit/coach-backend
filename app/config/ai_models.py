@@ -32,6 +32,9 @@ def get_model_config(app_name: str) -> dict:
 
 # Dostępne modele OpenAI (dla referencji)
 AVAILABLE_MODELS = [
+    # Auto Selection
+    "auto",             # Automatyczny wybór najlepszego modelu
+    
     # GPT-5 Series (Najnowsze)
     "gpt-5",            # Główna wersja GPT-5 - mocny model ogólnego zastosowania
     "gpt-5-chat",       # Zoptymalizowana pod interakcje konwersacyjne / chat
