@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.values.models import ValuesSession, ValuesChatMessage
+from app.config.ai_models import get_model_config
 from . import service_init
 
 # załaduj zmienne z .env
@@ -199,11 +200,19 @@ def chat_with_ai(user_message: str, history: list[dict] = None, value: str = "yo
     else:
         messages.append({"role": "user", "content": user_message})
 
-    # Wywołaj OpenAI
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-    )
+    # Pobierz konfigurację modelu
+    model_config = get_model_config("values")
+    
+    # Wywołaj OpenAI z konfiguracją
+    completion_params = {
+        "model": model_config["model"],
+        "messages": messages,
+        "temperature": model_config["temperature"]
+    }
+    if model_config["max_tokens"]:
+        completion_params["max_tokens"] = model_config["max_tokens"]
+    
+    completion = client.chat.completions.create(**completion_params)
 
     response = completion.choices[0].message.content
 
@@ -274,12 +283,20 @@ def stream_chat_with_ai(user_message: str, history: list[dict] | None = None, va
     else:
         messages.append({"role": "user", "content": user_message})
 
-    # Wywołaj OpenAI ze streamingiem
-    stream = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=messages,
-        stream=True
-    )
+    # Pobierz konfigurację modelu
+    model_config = get_model_config("values")
+    
+    # Wywołaj OpenAI ze streamingiem i konfiguracją
+    stream_params = {
+        "model": model_config["model"],
+        "messages": messages,
+        "temperature": model_config["temperature"],
+        "stream": True
+    }
+    if model_config["max_tokens"]:
+        stream_params["max_tokens"] = model_config["max_tokens"]
+    
+    stream = client.chat.completions.create(**stream_params)
 
     # Zbierz pełną odpowiedź dla zapisania do bazy
     full_response = ""
@@ -368,14 +385,22 @@ def generate_summary(value: str, chat_history: list[dict], reflection_history: l
     
     client = OpenAI(api_key=api_key)
     
-    # Wywołaj OpenAI z promptem do podsumowania
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
+    # Pobierz konfigurację modelu
+    model_config = get_model_config("values")
+    
+    # Wywołaj OpenAI z promptem do podsumowania i konfiguracją
+    summary_params = {
+        "model": model_config["model"],
+        "temperature": model_config["temperature"],
+        "messages": [
             {"role": "system", "content": "You are a skilled coach creating personalized session summaries."},
             {"role": "user", "content": final_prompt}
-        ],
-    )
+        ]
+    }
+    if model_config["max_tokens"]:
+        summary_params["max_tokens"] = model_config["max_tokens"]
+    
+    completion = client.chat.completions.create(**summary_params)
     
     return completion.choices[0].message.content
 

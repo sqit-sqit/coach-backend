@@ -3,10 +3,16 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from datetime import datetime, timedelta
+from pathlib import Path
+from pydantic import BaseModel
+from typing import Optional
+import os
+import json
+
 from app.core.database import get_db
 from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary
 from app.core.models import User, AppSession
-import os
+from app.config.ai_models import AI_MODELS, AVAILABLE_MODELS, get_model_config
 
 router = APIRouter(tags=["admin"], prefix="/admin")
 
@@ -172,4 +178,121 @@ def get_admin_stats(
         raise HTTPException(status_code=500, detail=f"Error fetching stats: {str(e)}")
     finally:
         db.close()
+
+
+# 🤖 AI Model Configuration Endpoints
+
+class ModelConfigUpdate(BaseModel):
+    model: str
+    temperature: float
+    max_tokens: Optional[int] = None
+
+
+@router.get("/ai-models")
+def get_ai_models_config(
+    admin_key: str = Query(...)
+):
+    """
+    Pobierz konfigurację modeli AI dla wszystkich apek.
+    
+    Wymaga admin_key w query params:
+    /admin/ai-models?admin_key=your-secret-key
+    """
+    # Verify admin key
+    verify_admin_key(admin_key)
+    
+    return {
+        "configs": AI_MODELS,
+        "available_models": AVAILABLE_MODELS
+    }
+
+
+@router.put("/ai-models/{app_name}")
+def update_ai_model_config(
+    app_name: str,
+    config: ModelConfigUpdate,
+    admin_key: str = Query(...)
+):
+    """
+    Zaktualizuj konfigurację modelu dla danej apki.
+    
+    Wymaga admin_key w query params:
+    PUT /admin/ai-models/values?admin_key=your-secret-key
+    
+    Body:
+    {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": null
+    }
+    """
+    # Verify admin key
+    verify_admin_key(admin_key)
+    
+    if config.model not in AVAILABLE_MODELS:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Invalid model name. Available models: {AVAILABLE_MODELS}"
+        )
+    
+    if not (0 <= config.temperature <= 1):
+        raise HTTPException(
+            status_code=400,
+            detail="Temperature must be between 0 and 1"
+        )
+    
+    # Aktualizuj w pamięci
+    if app_name not in AI_MODELS:
+        AI_MODELS[app_name] = {
+            "description": f"{app_name.capitalize()} app"
+        }
+    
+    AI_MODELS[app_name]["model"] = config.model
+    AI_MODELS[app_name]["temperature"] = config.temperature
+    AI_MODELS[app_name]["max_tokens"] = config.max_tokens
+    
+    # Zapisz do pliku (żeby przetrwało restart)
+    try:
+        config_path = Path(__file__).parent.parent.parent / "config" / "ai_models.py"
+        
+        # Przygotuj zawartość pliku
+        new_content = f'''"""
+AI Model Configuration for Mini-Apps
+Edit this file to change AI models for each app.
+Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+from datetime import datetime
+
+AI_MODELS = {json.dumps(AI_MODELS, indent=4)}
+
+# Fallback jeśli apka nie ma konfiguracji
+DEFAULT_CONFIG = {{
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "max_tokens": None
+}}
+
+def get_model_config(app_name: str) -> dict:
+    """Pobierz konfigurację modelu dla danej apki"""
+    return AI_MODELS.get(app_name, DEFAULT_CONFIG)
+
+# Dostępne modele OpenAI (dla referencji)
+AVAILABLE_MODELS = {json.dumps(AVAILABLE_MODELS, indent=4)}
+'''
+        
+        with open(config_path, 'w') as f:
+            f.write(new_content)
+        
+        print(f"✅ AI model config saved to file for {app_name}")
+        
+    except Exception as e:
+        print(f"⚠️ Warning: Could not save to file: {e}")
+        # Continue anyway - config is updated in memory
+    
+    return {
+        "status": "success",
+        "app_name": app_name,
+        "config": AI_MODELS[app_name],
+        "message": f"AI model configuration updated for {app_name}"
+    }
 
