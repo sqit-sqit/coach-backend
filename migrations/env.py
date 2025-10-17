@@ -17,6 +17,7 @@ load_dotenv()
 # Import models
 from app.core.models import Base as CoreBase
 from app.modules.values.models import Base as ValuesBase
+from app.modules.hd.models import Base as HDBase
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

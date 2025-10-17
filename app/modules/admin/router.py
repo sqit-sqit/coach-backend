@@ -180,6 +180,70 @@ def get_admin_stats(
         db.close()
 
 
+@router.get("/users")
+def get_all_users(
+    admin_key: str = Query(...),
+    limit: int = Query(100, description="Number of users to return"),
+    offset: int = Query(0, description="Offset for pagination")
+):
+    """
+    Pobiera listę wszystkich zarejestrowanych użytkowników z informacjami o aktywności.
+    
+    Wymaga admin_key w query params:
+    /admin/users?admin_key=your-secret-key
+    """
+    # Verify admin key
+    verify_admin_key(admin_key)
+    
+    db = next(get_db())
+    
+    try:
+        # Pobierz użytkowników z informacjami o aktywności
+        users = db.query(User).order_by(desc(User.created_at)).limit(limit).offset(offset).all()
+        
+        result = []
+        
+        for user in users:
+            # Znajdź ostatnią aktywność (ostatnia sesja)
+            last_activity = db.query(AppSession).filter(
+                AppSession.user_id == user.user_id
+            ).order_by(desc(AppSession.started_at)).first()
+            
+            # Policz liczbę sesji
+            total_sessions = db.query(AppSession).filter(
+                AppSession.user_id == user.user_id
+            ).count()
+            
+            # Policz sesje z ostatnich 30 dni
+            thirty_days_ago = datetime.now() - timedelta(days=30)
+            recent_sessions = db.query(AppSession).filter(
+                AppSession.user_id == user.user_id,
+                AppSession.started_at >= thirty_days_ago
+            ).count()
+            
+            result.append({
+                "user_id": user.user_id,
+                "email": user.email,
+                "name": user.name,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "is_active": user.is_active,
+                "last_activity": last_activity.started_at.isoformat() if last_activity else None,
+                "total_sessions": total_sessions,
+                "recent_sessions_30d": recent_sessions
+            })
+        
+        return {
+            "users": result,
+            "total_count": db.query(User).count()
+        }
+        
+    except Exception as e:
+        print(f"Admin users error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
+    finally:
+        db.close()
+
+
 # 🤖 AI Model Configuration Endpoints
 
 class ModelConfigUpdate(BaseModel):
