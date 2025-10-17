@@ -1,0 +1,32 @@
+name: Database Migration
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'migrations/**'
+      - 'app/**'
+      - 'requirements.txt'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        
+    - name: Run migrations
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      run: |
+        python -m alembic upgrade head

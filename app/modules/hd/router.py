@@ -142,6 +142,11 @@ def read_progress(user_id: str):
 def calculate_hd_chart(request: schemas.HDChartRequest):
     """Calculate Human Design chart"""
     try:
+        print(f"🔄 HD Calculation started for {request.name}")
+        print(f"📅 Birth data: {request.birth_date} {request.birth_time}")
+        print(f"📍 Location: {request.birth_place} ({request.birth_lat}, {request.birth_lng})")
+        print(f"🔧 Settings: {request.zodiac_system}, {request.calculation_method}")
+        
         calculator = service.HumanDesignCalculator()
         
         # Calculate chart data
@@ -154,6 +159,8 @@ def calculate_hd_chart(request: schemas.HDChartRequest):
             request.calculation_method,
             request.birth_place
         )
+        
+        print(f"✅ HD Calculation completed successfully")
         
         # Determine Human Design components
         type = calculator.determine_type(chart_data)
@@ -213,6 +220,10 @@ def calculate_hd_chart(request: schemas.HDChartRequest):
         )
         
     except Exception as e:
+        print(f"❌ HD Calculation failed: {str(e)}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error calculating chart: {str(e)}")
 
 @router.get("/chart/{session_id}")

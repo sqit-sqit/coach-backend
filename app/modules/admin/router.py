@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from typing import Optional
 import os
 import json
+import subprocess
+import sys
 
 from app.core.database import get_db
 from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary
@@ -242,6 +244,46 @@ def get_all_users(
         raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
     finally:
         db.close()
+
+
+@router.post("/migrate")
+def run_database_migration(admin_key: str = Query(...)):
+    """
+    Ręcznie uruchom migracje bazy danych.
+    
+    Wymaga admin_key w query params:
+    /admin/migrate?admin_key=your-secret-key
+    """
+    # Verify admin key
+    verify_admin_key(admin_key)
+    
+    try:
+        print("🔄 Running database migrations manually...")
+        
+        # Get the project root directory (parent of app directory)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        
+        result = subprocess.run([
+            sys.executable, "-m", "alembic", "upgrade", "head"
+        ], capture_output=True, text=True, cwd=project_root)
+        
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "message": "Database migrations completed successfully",
+                "output": result.stdout
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Migration failed",
+                "error": result.stderr,
+                "output": result.stdout
+            }
+            
+    except Exception as e:
+        print(f"Migration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error running migrations: {str(e)}")
 
 
 # 🤖 AI Model Configuration Endpoints
