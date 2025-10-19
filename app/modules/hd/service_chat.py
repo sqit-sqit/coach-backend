@@ -7,10 +7,89 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.models import ChatSession, ChatMessage
+from app.core.chat_service import BaseChatService
 from app.config.ai_models import get_model_config
+from app.modules.hd.models import HDSession, HDChatMessage
 
 # załaduj zmienne z .env
 load_dotenv()
+
+
+class HDChatService(BaseChatService):
+    """
+    Specjalizowany serwis chat dla Human Design.
+    Dziedziczy z BaseChatService i implementuje specyficzną logikę HD.
+    """
+    
+    def __init__(self):
+        super().__init__("hd")
+    
+    def _get_start_message(self) -> str:
+        """Wiadomość startowa dla HD chat."""
+        return "Start the Human Design conversation. Begin with an introduction about my chart."
+    
+    def _load_personality(self, context_data: dict) -> str:
+        """Ładuje personality HD z danymi użytkownika."""
+        return load_hd_personality(context_data)
+    
+    def _save_user_message(self, user_message: str, user_id: str, context_data: dict):
+        """Zapisuje wiadomość użytkownika do bazy HD."""
+        db = next(get_db())
+        try:
+            # Znajdź sesję HD
+            hd_session = db.query(HDSession).filter(
+                HDSession.user_id == user_id
+            ).order_by(HDSession.started_at.desc()).first()
+            
+            if hd_session:
+                # Znajdź ostatni message_order
+                last_message = db.query(HDChatMessage).filter(
+                    HDChatMessage.session_id == hd_session.session_id
+                ).order_by(HDChatMessage.message_order.desc()).first()
+                
+                next_order = (last_message.message_order + 1) if last_message else 1
+                
+                # Zapisz wiadomość użytkownika
+                user_msg = HDChatMessage(
+                    session_id=hd_session.session_id,
+                    role="user",
+                    content=user_message,
+                    message_order=next_order
+                )
+                db.add(user_msg)
+                db.commit()
+        finally:
+            db.close()
+    
+    def _save_ai_message(self, ai_response: str, user_id: str, context_data: dict):
+        """Zapisuje odpowiedź AI do bazy HD."""
+        db = next(get_db())
+        try:
+            # Znajdź sesję HD
+            hd_session = db.query(HDSession).filter(
+                HDSession.user_id == user_id
+            ).order_by(HDSession.started_at.desc()).first()
+            
+            if hd_session:
+                # Znajdź ostatni message_order
+                last_message = db.query(HDChatMessage).filter(
+                    HDChatMessage.session_id == hd_session.session_id
+                ).order_by(HDChatMessage.message_order.desc()).first()
+                
+                next_order = (last_message.message_order + 1) if last_message else 1
+                
+                # Zapisz odpowiedź AI
+                ai_msg = HDChatMessage(
+                    session_id=hd_session.session_id,
+                    role="assistant",
+                    content=ai_response,
+                    message_order=next_order
+                )
+                db.add(ai_msg)
+                db.commit()
+        finally:
+            db.close()
+
 
 # 🔹 Wczytywanie pliku osobowości HD
 def load_hd_personality(hd_data: dict) -> str:
@@ -42,188 +121,41 @@ def load_hd_personality(hd_data: dict) -> str:
         .replace("{activations}", str(hd_data.get("activations", [])))
     )
 
-# 🔹 Główna funkcja czatu HD
+# 🔹 Główna funkcja czatu HD (legacy - używa HDChatService)
 def chat_with_hd_ai(user_message: str, history: list[dict] = None, hd_data: dict = None, user_id: str = None) -> str:
     """
     Tworzy odpowiedź AI bazując na danych HD użytkownika.
+    Używa HDChatService do zachowania kompatybilności wstecznej.
     """
     if history is None:
         history = []
     if hd_data is None:
         hd_data = {}
 
-    # Wczytaj personality z danymi HD
-    system_prompt = load_hd_personality(hd_data)
-
-    # Pobierz klucz API
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set in .env")
-
-    client = OpenAI(api_key=api_key)
-
-    # Zbuduj wiadomości dla modelu
-    messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(history)   # historia już ma role: user/assistant
+    # Użyj HDChatService do generowania odpowiedzi
+    service = HDChatService()
     
-    # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
-    if not user_message.strip():
-        messages.append({"role": "user", "content": "Start the Human Design conversation. Begin with an introduction about my chart."})
-    else:
-        messages.append({"role": "user", "content": user_message})
-
-    # Pobierz konfigurację modelu
-    model_config = get_model_config("values")  # Używamy tej samej konfiguracji co Values
+    # Zbierz pełną odpowiedź (nie streaming)
+    full_response = ""
+    for chunk in service.stream_chat(user_message, history, hd_data, user_id):
+        full_response += chunk
     
-    # Wywołaj OpenAI z konfiguracją
-    completion_params = {
-        "model": model_config["model"],
-        "messages": messages,
-        "temperature": model_config["temperature"]
-    }
-    if model_config["max_tokens"]:
-        completion_params["max_tokens"] = model_config["max_tokens"]
-    
-    completion = client.chat.completions.create(**completion_params)
+    return full_response
 
-    response = completion.choices[0].message.content
-
-    # Zapisz wiadomości do bazy jeśli user_id jest podany
-    if user_id:
-        db = next(get_db())
-        try:
-            # Znajdź lub stwórz sesję chat
-            chat_session = db.query(ChatSession).filter(
-                ChatSession.user_id == user_id,
-                ChatSession.session_type == "hd_chat"
-            ).first()
-            
-            if not chat_session:
-                chat_session = ChatSession(
-                    id=f"hd-chat-{user_id}-{int(os.urandom(4).hex(), 16)}",
-                    user_id=user_id,
-                    session_type="hd_chat",
-                    session_metadata={"hd_data": hd_data}
-                )
-                db.add(chat_session)
-                db.commit()
-            
-            # Zapisz wiadomość użytkownika
-            user_msg = ChatMessage(
-                id=f"msg-{int(os.urandom(4).hex(), 16)}",
-                session_id=chat_session.id,
-                role="user",
-                content=user_message
-            )
-            db.add(user_msg)
-            
-            # Zapisz odpowiedź AI
-            ai_msg = ChatMessage(
-                id=f"msg-{int(os.urandom(4).hex(), 16)}",
-                session_id=chat_session.id,
-                role="assistant",
-                content=response
-            )
-            db.add(ai_msg)
-            
-            db.commit()
-            
-        finally:
-            db.close()
-
-    return response
-
-# 🔹 Streaming version
+# 🔹 Streaming version (refactored - używa HDChatService)
 def stream_chat_with_hd_ai(user_message: str, history: list[dict] = None, hd_data: dict = None, user_id: str = None):
     """
     Streaming version of HD chat.
+    Używa HDChatService do zachowania kompatybilności wstecznej.
     """
     if history is None:
         history = []
     if hd_data is None:
         hd_data = {}
 
-    # Wczytaj personality z danymi HD
-    system_prompt = load_hd_personality(hd_data)
-
-    # Pobierz klucz API
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY not set in .env")
-
-    client = OpenAI(api_key=api_key)
-
-    # Zbuduj wiadomości dla modelu
-    messages = [{"role": "system", "content": system_prompt}]
-    messages.extend(history)   # historia już ma role: user/assistant
-    
-    # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
-    if not user_message.strip():
-        messages.append({"role": "user", "content": "Start the Human Design conversation. Begin with an introduction about my chart."})
-    else:
-        messages.append({"role": "user", "content": user_message})
-
-    # Pobierz konfigurację modelu
-    model_config = get_model_config("values")  # Używamy tej samej konfiguracji co Values
-    
-    # Wywołaj OpenAI ze streamingiem
-    stream_params = {
-        "model": model_config["model"],
-        "messages": messages,
-        "temperature": model_config["temperature"],
-        "stream": True
-    }
-    if model_config["max_tokens"]:
-        stream_params["max_tokens"] = model_config["max_tokens"]
-    
-    stream = client.chat.completions.create(**stream_params)
-
-    # Zbierz pełną odpowiedź dla zapisania do bazy
-    full_response = ""
-    
-    # Zapisz wiadomość użytkownika do bazy jeśli user_id jest podany
-    if user_id:
-        db = next(get_db())
-        try:
-            # Znajdź lub stwórz sesję chat
-            chat_session = db.query(ChatSession).filter(
-                ChatSession.user_id == user_id,
-                ChatSession.session_type == "hd_chat"
-            ).first()
-            
-            if not chat_session:
-                chat_session = ChatSession(
-                    id=f"hd-chat-{user_id}-{int(os.urandom(4).hex(), 16)}",
-                    user_id=user_id,
-                    session_type="hd_chat",
-                    session_metadata={"hd_data": hd_data}
-                )
-                db.add(chat_session)
-                db.commit()
-            
-            save_chat_message(db, chat_session.id, "user", user_message)
-        finally:
-            db.close()
-
-    for chunk in stream:
-        if chunk.choices[0].delta.content is not None:
-            content = chunk.choices[0].delta.content
-            full_response += content
-            yield content
-
-    # Zapisz pełną odpowiedź AI do bazy jeśli user_id jest podany
-    if user_id:
-        db = next(get_db())
-        try:
-            chat_session = db.query(ChatSession).filter(
-                ChatSession.user_id == user_id,
-                ChatSession.session_type == "hd_chat"
-            ).first()
-            
-            if chat_session:
-                save_chat_message(db, chat_session.id, "assistant", full_response)
-        finally:
-            db.close()
+    # Użyj HDChatService do streaming
+    service = HDChatService()
+    yield from service.stream_chat(user_message, history, hd_data, user_id)
 
 # 🔹 Helper function to save chat messages
 def save_chat_message(db: Session, session_id: str, role: str, content: str):
@@ -236,3 +168,17 @@ def save_chat_message(db: Session, session_id: str, role: str, content: str):
     )
     db.add(message)
     db.commit()
+
+# 🔹 Get chat history from database
+def get_hd_chat_history_from_db(db: Session, session_id: str) -> list[dict]:
+    """Pobiera historię czatu HD z bazy danych"""
+    from app.modules.hd.models import HDChatMessage
+    
+    messages = db.query(HDChatMessage).filter(
+        HDChatMessage.session_id == session_id
+    ).order_by(HDChatMessage.message_order, HDChatMessage.created_at).all()
+    
+    return [
+        {"role": msg.role, "content": msg.content}
+        for msg in messages
+    ]

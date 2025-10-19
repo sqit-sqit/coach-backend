@@ -11,6 +11,18 @@ AI_MODELS = {
         "max_tokens": None,
         "description": "Values Workshop - empathetic coaching"
     },
+    "values_chat": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": None,
+        "description": "Values Chat - empathetic coaching"
+    },
+    "hd_chat": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": None,
+        "description": "Human Design Chat - specialized HD guidance"
+    },
     "grow": {
         "model": "gpt-4o-mini",
         "temperature": 0.8,
