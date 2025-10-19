@@ -47,6 +47,7 @@ app.add_middleware(
         "http://localhost:3000",  # dev
         "https://walrus-app-xcv66.ondigitalocean.app",  # produkcja
         "https://self.flow-xr.com",  # nowa domena
+        "https://projectively-thunderstruck-kyong.ngrok-free.dev",  # ngrok
     ],
     allow_credentials=True,
     allow_methods=["*"],

@@ -9,6 +9,8 @@ from app.core.models import User, AppSession
 from app.routers.auth import get_current_user_from_token
 from app.modules.hd.models import HDSession, HDChatMessage, HDSummary
 from app.modules.hd import service, schemas
+from app.modules.hd.data.gates_pl import GATES_PL
+from app.modules.hd.chat_router import router as hd_chat_router
 from app.config.ai_models import get_model_config
 import time
 import uuid
@@ -293,14 +295,19 @@ def get_hd_chart(session_id: str):
 @router.post("/chart/{session_id}/regenerate")
 def regenerate_hd_chart(session_id: str, request: schemas.HDChartRequest):
     """Regenerate Human Design chart with new calculation system"""
+    print(f"🔄 Regenerate HD called - session_id: {session_id}, request.user_id: {request.user_id}")
     try:
         # Get existing session
         existing_session = service.get_hd_session(session_id)
+        print(f"📊 Existing session found: {existing_session}")
         if not existing_session:
+            print("❌ Session not found")
             raise HTTPException(status_code=404, detail="Session not found")
         
         # Check if user owns this session
+        print(f"🔐 Checking access - existing_session.user_id: '{existing_session.user_id}', request.user_id: '{request.user_id}'")
         if existing_session.user_id != request.user_id:
+            print(f"❌ Access denied - user IDs don't match")
             raise HTTPException(status_code=403, detail="Access denied")
         
         calculator = service.HumanDesignCalculator()
@@ -388,90 +395,18 @@ def regenerate_hd_chart(session_id: str, request: schemas.HDChartRequest):
         finally:
             db.close()
             
+    except HTTPException as he:
+        # Re-raise HTTP exceptions without wrapping
+        print(f"❌ HTTPException in regenerate: {he.status_code} - {he.detail}")
+        raise he
     except Exception as e:
-        print(f"Error regenerating chart: {e}")
+        print(f"❌ Error regenerating chart: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error regenerating chart: {str(e)}")
 
 # ---------- CHAT ----------
-@router.post("/chat")
-def chat_with_hd_ai(request: schemas.HDChatMessage):
-    """Chat with Human Design AI coach"""
-    try:
-        # Get session
-        session = service.get_hd_session(request.session_id)
-        if not session:
-            raise HTTPException(status_code=404, detail="Session not found")
-        
-        # For now, return a simple response
-        # TODO: Implement AI chat logic similar to values
-        response = f"Based on your Human Design as a {session.type}, your strategy is to {session.strategy.lower()}. How can I help you understand this better?"
-        
-        # Save message to database
-        db = next(get_db())
-        try:
-            # Get next message order
-            last_message = db.query(HDChatMessage).filter(
-                HDChatMessage.session_id == request.session_id
-            ).order_by(desc(HDChatMessage.message_order)).first()
-            
-            next_order = (last_message.message_order + 1) if last_message else 1
-            
-            # Save user message
-            user_message = HDChatMessage(
-                session_id=request.session_id,
-                role="user",
-                content=request.message,
-                message_order=next_order
-            )
-            db.add(user_message)
-            
-            # Save AI response
-            ai_message = HDChatMessage(
-                session_id=request.session_id,
-                role="assistant",
-                content=response,
-                message_order=next_order + 1
-            )
-            db.add(ai_message)
-            
-            db.commit()
-            
-            return schemas.HDChatResponse(
-                response=response,
-                message_id=str(ai_message.id),
-                has_action_chips=False
-            )
-        finally:
-            db.close()
-            
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error in chat: {str(e)}")
-
-@router.get("/chat/{session_id}")
-def get_chat_history(session_id: str):
-    """Get chat history for HD session"""
-    db = next(get_db())
-    try:
-        messages = db.query(HDChatMessage).filter(
-            HDChatMessage.session_id == session_id
-        ).order_by(HDChatMessage.message_order).all()
-        
-        message_list = []
-        for msg in messages:
-            message_list.append({
-                "role": msg.role,
-                "content": msg.content,
-                "created_at": msg.created_at.isoformat(),
-                "message_order": msg.message_order
-            })
-        
-        return schemas.HDChatHistory(
-            session_id=session_id,
-            messages=message_list,
-            total_messages=len(message_list)
-        )
-    finally:
-        db.close()
+# Chat functionality moved to chat_router.py
 
 # ---------- SUMMARY ----------
 @router.post("/summary")
@@ -559,3 +494,31 @@ def get_user_hd_dashboard(user_id: str):
         }
     finally:
         db.close()
+
+# ---------- GATES DATA ----------
+@router.get("/gates/{language}")
+async def get_gates(language: str = "pl"):
+    """
+    Pobiera dane bramek w określonym języku
+    """
+    if language == "pl":
+        return GATES_PL
+    else:
+        # W przyszłości można dodać inne języki
+        raise HTTPException(status_code=404, detail=f"Language {language} not supported")
+
+@router.get("/gates/{language}/{gate_number}")
+async def get_gate_info(language: str = "pl", gate_number: int = None):
+    """
+    Pobiera informacje o konkretnej bramce
+    """
+    if language == "pl":
+        if gate_number in GATES_PL:
+            return GATES_PL[gate_number]
+        else:
+            raise HTTPException(status_code=404, detail=f"Gate {gate_number} not found")
+    else:
+        raise HTTPException(status_code=404, detail=f"Language {language} not supported")
+
+# Dodaj router HD chat
+router.include_router(hd_chat_router)
