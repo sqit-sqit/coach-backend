@@ -13,12 +13,14 @@ from app.config.ai_models import get_model_config
 load_dotenv()
 
 # 🔹 Wczytywanie pliku osobowości
-def load_spiral_personality(initial_problem: str = "not specified", current_cycle: int = 1, prompt_template: str = "", user_name: str = "Guest") -> str:
+def load_spiral_personality(initial_problem: str = "not specified", current_cycle: int = 1, prompt_template: str = "", user_name: str = "Guest", lang: str = "pl") -> str:
     """
     Ładuje osobowość Spiral z pliku i podstawia zmienne.
     """
     base_dir = Path(__file__).resolve().parents[2] / "personality"
-    file_path = base_dir / "spiral_personality_chat.txt"
+    # choose language-specific file, default to PL
+    filename = "spiral_personality_chat.en.txt" if lang == "en" else "spiral_personality_chat.pl.txt"
+    file_path = base_dir / filename
 
     if not file_path.exists():
         return "You are a helpful AI assistant for spiral reflection."
@@ -33,7 +35,18 @@ def load_spiral_personality(initial_problem: str = "not specified", current_cycl
 
 
 # 🔹 Wczytywanie pliku z szablonem pytań
-def load_prompt_template(file_name: str = "spiral_session_template.yaml") -> str:
+def load_summary_prompt() -> str:
+    """Ładuje prompt do generowania podsumowań sesji Spiral"""
+    base_dir = Path(__file__).resolve().parents[2] / "personality"
+    file_path = base_dir / "spiral_summary_prompt.txt"
+    
+    if not file_path.exists():
+        return "Stwórz podsumowanie sesji Spiral użytkownika."
+    
+    return file_path.read_text(encoding="utf-8")
+
+
+def load_prompt_template(file_name: str = "spiral_session_template.pl.yaml") -> str:
     base_dir = Path(__file__).resolve().parents[2] / "personality"
     file_path = base_dir / file_name
 
@@ -141,7 +154,7 @@ def get_chat_history_from_db(db: Session, session_id: str) -> list[dict]:
 
 
 # 🔹 Główna funkcja czatu
-def chat_with_spiral_ai(user_message: str, history: list[dict] = None, initial_problem: str = None, current_cycle: int = 1, user_id: str = None) -> str:
+def chat_with_spiral_ai(user_message: str, history: list[dict] = None, initial_problem: str = None, current_cycle: int = 1, user_id: str = None, lang: str = "pl") -> str:
     """
     Tworzy odpowiedź AI bazując na historii rozmowy i pliku osobowości.
     """
@@ -152,8 +165,9 @@ def chat_with_spiral_ai(user_message: str, history: list[dict] = None, initial_p
     user_name = "Guest"  # Można dodać logikę pobierania imienia z bazy
     
     # Wczytaj personality + template
-    prompt_template = load_prompt_template("spiral_session_template.yaml")
-    system_prompt = load_spiral_personality(initial_problem or "not specified", current_cycle, prompt_template, user_name)
+    template_filename = "spiral_session_template.en.yaml" if lang == "en" else "spiral_session_template.pl.yaml"
+    prompt_template = load_prompt_template(template_filename)
+    system_prompt = load_spiral_personality(initial_problem or "not specified", current_cycle, prompt_template, user_name, lang)
 
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")
@@ -169,7 +183,12 @@ def chat_with_spiral_ai(user_message: str, history: list[dict] = None, initial_p
     # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
     if not user_message.strip():
         # Rozpoczęcie sesji spiral - AI powinno zacząć od intro z YAML
-        messages.append({"role": "user", "content": "Start the spiral reflection session. Begin with the intro from the YAML template."})
+        start_cmd = (
+            "Rozpocznij sesję metody Spiral. Zacznij od intro z szablonu YAML."
+            if lang == "pl"
+            else "Start the spiral reflection session. Begin with the intro from the YAML template."
+        )
+        messages.append({"role": "user", "content": start_cmd})
     else:
         messages.append({"role": "user", "content": user_message})
 
@@ -189,25 +208,12 @@ def chat_with_spiral_ai(user_message: str, history: list[dict] = None, initial_p
 
     response = completion.choices[0].message.content
 
-    # Zapisz wiadomości do bazy jeśli user_id jest podany
-    if user_id:
-        db = next(get_db())
-        try:
-            session = get_or_create_spiral_session(db, user_id, initial_problem)
-            
-            # Zapisz wiadomość użytkownika
-            save_chat_message(db, session.session_id, "user", user_message)
-            
-            # Zapisz odpowiedź AI
-            save_chat_message(db, session.session_id, "assistant", response)
-            
-        finally:
-            db.close()
+    # Wiadomości są już zapisywane w chat_router.py, więc nie zapisujemy tutaj
 
     return response
 
 
-def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = None, initial_problem: str = None, current_cycle: int = 1, user_id: str = None):
+def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = None, initial_problem: str = None, current_cycle: int = 1, user_id: str = None, lang: str = "pl"):
     """
     Streamuje odpowiedź AI w kawałkach (chunkach) jako generator.
     """
@@ -218,8 +224,9 @@ def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = N
     user_name = "Guest"  # Można dodać logikę pobierania imienia z bazy
     
     # Wczytaj personality + template
-    prompt_template = load_prompt_template("spiral_session_template.yaml")
-    system_prompt = load_spiral_personality(initial_problem or "not specified", current_cycle, prompt_template, user_name)
+    template_filename = "spiral_session_template.en.yaml" if lang == "en" else "spiral_session_template.pl.yaml"
+    prompt_template = load_prompt_template(template_filename)
+    system_prompt = load_spiral_personality(initial_problem or "not specified", current_cycle, prompt_template, user_name, lang)
 
     # Pobierz klucz API
     api_key = os.getenv("OPENAI_API_KEY")
@@ -235,7 +242,12 @@ def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = N
     # Obsługa pierwszej wiadomości (pusta wiadomość = rozpoczęcie sesji)
     if not user_message.strip():
         # Rozpoczęcie sesji spiral - AI powinno zacząć od intro z YAML
-        messages.append({"role": "user", "content": "Start the spiral reflection session. Begin with the intro from the YAML template."})
+        start_cmd = (
+            "Rozpocznij sesję metody Spiral. Zacznij od intro z szablonu YAML."
+            if lang == "pl"
+            else "Start the spiral reflection session. Begin with the intro from the YAML template."
+        )
+        messages.append({"role": "user", "content": start_cmd})
     else:
         messages.append({"role": "user", "content": user_message})
 
@@ -257,14 +269,7 @@ def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = N
     # Zbierz pełną odpowiedź dla zapisania do bazy
     full_response = ""
     
-    # Zapisz wiadomość użytkownika do bazy jeśli user_id jest podany
-    if user_id:
-        db = next(get_db())
-        try:
-            session = get_or_create_spiral_session(db, user_id, initial_problem)
-            save_chat_message(db, session.session_id, "user", user_message)
-        finally:
-            db.close()
+    # Wiadomości są już zapisywane w chat_router.py, więc nie zapisujemy tutaj
 
     for chunk in stream:
         if chunk.choices[0].delta.content is not None:
@@ -272,12 +277,82 @@ def stream_chat_with_spiral_ai(user_message: str, history: list[dict] | None = N
             full_response += content
             yield content
 
-    # Zapisz pełną odpowiedź AI do bazy jeśli user_id jest podany
-    if user_id and full_response:
-        db = next(get_db())
-        try:
-            session = get_or_create_spiral_session(db, user_id, initial_problem)
-            save_chat_message(db, session.session_id, "assistant", full_response)
-        finally:
-            db.close()
+    # Wiadomości są już zapisywane w chat_router.py, więc nie zapisujemy tutaj
+
+
+def generate_spiral_summary(session_id: str, initial_problem: str = None, user_messages: list = None) -> str:
+    """
+    Generuje podsumowanie sesji Spiral na podstawie wiadomości użytkownika.
+    """
+    if not user_messages or len(user_messages) == 0:
+        # Pusta sesja - użyj szablonu dla pustej sesji
+        problem_text = f' dotyczącej: "{initial_problem}"' if initial_problem else ""
+        return f"""Podsumowanie Twojej sesji Spiral{problem_text}.
+
+W tej sesji nie zapisano odpowiedzi użytkownika. Jeśli chcesz, wróć do czatu i dodaj kilka odpowiedzi, a tutaj pojawi się zwięzłe podsumowanie Twojej podróży refleksyjnej."""
+
+    # Sesja z dialogiem - wygeneruj podsumowanie przez AI
+    try:
+        # Pobierz klucz API
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY not set in .env")
+
+        client = OpenAI(api_key=api_key)
+        
+        # Wczytaj prompt do podsumowania
+        summary_prompt = load_summary_prompt()
+        
+        # Przygotuj dane dla AI
+        problem_text = f' dotyczącej: "{initial_problem}"' if initial_problem else ""
+        first_message = user_messages[0] if user_messages else ""
+        last_message = user_messages[-1] if user_messages else ""
+        
+        # Stwórz prompt z danymi
+        user_data = f"""
+Dane sesji:
+- Problem początkowy: {initial_problem or "nie określono"}
+- Pierwsza odpowiedź użytkownika: {first_message}
+- Ostatnia odpowiedź użytkownika: {last_message}
+- Wszystkie odpowiedzi użytkownika: {user_messages}
+
+Wygeneruj podsumowanie zgodnie z instrukcjami w promptcie.
+"""
+        
+        messages = [
+            {"role": "system", "content": summary_prompt},
+            {"role": "user", "content": user_data}
+        ]
+        
+        # Pobierz konfigurację modelu
+        model_config = get_model_config("spiral_chat")
+        
+        # Wywołaj OpenAI
+        completion_params = {
+            "model": model_config["model"],
+            "messages": messages,
+            "temperature": 0.7  # Wyższa temperatura dla kreatywności w podsumowaniu
+        }
+        if model_config["max_tokens"]:
+            completion_params["max_tokens"] = model_config["max_tokens"]
+        
+        completion = client.chat.completions.create(**completion_params)
+        return completion.choices[0].message.content
+        
+    except Exception as e:
+        # Fallback - proste podsumowanie
+        problem_text = f' dotyczącej: "{initial_problem}"' if initial_problem else ""
+        return f"""Podsumowanie Twojej sesji Spiral{problem_text}.
+
+**Punkt wyjścia:**
+{user_messages[0] if user_messages else "Brak odpowiedzi"}
+
+**Miejsce, w którym skończyłeś:**
+{user_messages[-1] if user_messages else "Brak odpowiedzi"}
+
+**Kluczowe wglądy z podróży:**
+{chr(10).join([f"- {msg}" for msg in user_messages[:3]]) if user_messages else "Brak odpowiedzi"}
+
+**Następne kroki:**
+Zauważ, jak poszczególne odpowiedzi wpływają na kolejne kroki (Kim jestem → Co robię → Co mam), tworząc spiralę pogłębiania wglądów. Jeśli chcesz kontynuować tę podróż, wróć do czatu."""
 

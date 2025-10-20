@@ -8,7 +8,7 @@ from app.core.database import get_db
 from app.core.models import User, AppSession
 from app.routers.auth import get_current_user_from_token
 from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary
-from . import service_init, schemas, service_chat, service_feedback
+from . import service_init, schemas, service_chat
 
 router = APIRouter(tags=["values"])
 
@@ -255,46 +255,43 @@ def get_user_dashboard(user_id: str, db: Session = Depends(get_db)):
 
 
 # ---------- FEEDBACK ----------
-@router.post("/feedback")
-def submit_feedback(feedback: schemas.FeedbackSubmit):
-    """
-    Zapisuje feedback od użytkownika.
-    Automatycznie pobiera dane użytkownika z init phase jeśli nie podano.
-    """
-    print(f">>> FEEDBACK ENDPOINT CALLED: user_id={feedback.user_id}, rating={feedback.rating}")
-    try:
-        result = service_feedback.save_feedback(
-            user_id=feedback.user_id,
-            session_id=feedback.session_id,
-            name=feedback.name,
-            age_range=feedback.age_range,
-            interests=feedback.interests,
-            rating=feedback.rating,
-            liked_text=feedback.liked_text,
-            liked_chips=feedback.liked_chips,
-            disliked_text=feedback.disliked_text,
-            disliked_chips=feedback.disliked_chips,
-            additional_feedback=feedback.additional_feedback
-        )
-        print(f">>> FEEDBACK SAVED SUCCESSFULLY: {result}")
-        return result
-    except Exception as e:
-        print(f">>> FEEDBACK ERROR: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to save feedback: {str(e)}")
+# This endpoint is now obsolete and replaced by the generic /feedback endpoint
+# @router.post("/feedback")
+# async def submit_feedback(
+#     feedback_data: FeedbackCreate,
+#     db: Session = Depends(get_db)
+# ):
+#     """Submit feedback for the values workshop"""
+#     try:
+#         db_feedback = Feedback(
+#             user_id=feedback_data.user_id,
+#             session_id=feedback_data.session_id,
+#             rating=feedback_data.rating,
+#             liked_text=feedback_data.liked_text,
+#             liked_chips=feedback_data.liked_chips,
+#             disliked_text=feedback_data.disliked_text,
+#             disliked_chips=feedback_data.disliked_chips,
+#             additional_feedback=feedback_data.additional_feedback
+#         )
+#         db.add(db_feedback)
+#         db.commit()
+#         db.refresh(db_feedback)
+#         return {"message": "Feedback submitted successfully"}
+#     except Exception as e:
+#         db.rollback()
+#         raise HTTPException(status_code=500, detail=f"Error submitting feedback: {str(e)}")
 
-@router.get("/feedback/{user_id}")
-def get_user_feedback(user_id: str):
-    """
-    Pobiera feedback dla danego użytkownika.
-    """
-    feedback = service_feedback.get_feedback(user_id)
-    if not feedback:
-        raise HTTPException(status_code=404, detail="Feedback not found")
-    return feedback
+# Obsolete endpoints - replaced by the generic /feedback router
+# @router.get("/feedback/{user_id}")
+# def get_user_feedback(user_id: str):
+#     """
+#     Pobiera feedback dla danego użytkownika.
+#     """
+#     raise HTTPException(status_code=501, detail="Feedback functionality is currently unavailable.")
 
-@router.get("/feedback")
-def get_all_feedback_data(limit: int = 100, offset: int = 0):
-    """
-    Pobiera wszystkie feedbacki (dla admina).
-    """
-    return service_feedback.get_all_feedback(limit=limit, offset=offset)
+# @router.get("/feedback")
+# def get_all_feedback(limit: int = 100, offset: int = 0):
+#     """
+#     Pobiera wszystkie feedbacki (dla admina).
+#     """
+#     raise HTTPException(status_code=501, detail="Feedback functionality is currently unavailable.")

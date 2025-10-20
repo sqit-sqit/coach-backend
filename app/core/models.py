@@ -1,6 +1,6 @@
 # app/core/models.py
 from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 from .database import Base
 
@@ -17,8 +17,11 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     
     # Relationships
-    user_apps = relationship("UserApp", back_populates="user")
+    spiral_sessions = relationship("SpiralSession", back_populates="user")
+    hd_sessions = relationship("HDSession", back_populates="user")
     app_sessions = relationship("AppSession", back_populates="user")
+    user_apps = relationship("UserApp", back_populates="user")
+    feedbacks = relationship("Feedback", back_populates="user")
 
 class UserApp(Base):
     """Track which mini-apps user has used"""
@@ -76,3 +79,20 @@ class ChatMessage(Base):
     
     # Relationships
     chat_session = relationship("ChatSession", back_populates="messages")
+
+class Feedback(Base):
+    __tablename__ = 'feedback'
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+    rating = Column(Integer)
+    liked_text = Column(String)
+    liked_chips = Column(JSON)
+    disliked_text = Column(String)
+    disliked_chips = Column(JSON)
+    additional_feedback = Column(String)
+    module = Column(String) # np. "values", "spiral", "hd"
+    session_id = Column(String, nullable=True) # opcjonalnie
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="feedbacks")

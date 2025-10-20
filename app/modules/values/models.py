@@ -1,8 +1,9 @@
 # app/modules/values/models.py
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, JSON, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.core.models import Feedback
 
 class ValuesSession(Base):
     """Values exploration session"""
@@ -19,7 +20,14 @@ class ValuesSession(Base):
     
     # Relationships
     chat_messages = relationship("ValuesChatMessage", back_populates="session", cascade="all, delete-orphan")
-    summary = relationship("ValuesSummary", back_populates="session", uselist=False)
+    summary = relationship("ValuesSummary", uselist=False, back_populates="session")
+    
+    feedback = relationship(
+        "Feedback",
+        primaryjoin="and_(ValuesSession.session_id==Feedback.session_id, Feedback.module=='values')",
+        uselist=False,
+        foreign_keys="[Feedback.session_id]"
+    )
 
 class ValuesChatMessage(Base):
     """Individual chat messages in values session"""
@@ -51,28 +59,20 @@ class ValuesSummary(Base):
     # Relationships
     session = relationship("ValuesSession", back_populates="summary")
 
-class Feedback(Base):
-    """User feedback from values workshop"""
-    __tablename__ = "feedback"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
-    session_id = Column(String(255), nullable=True, index=True)  # link to values session if available
-    
-    # User info from init step 4
-    name = Column(String(255), nullable=True)
-    age_range = Column(String(100), nullable=True)  # e.g., "18-25", "26-35", etc.
-    interests = Column(JSON, nullable=True)  # array of interests
-    
-    # Feedback form data
-    rating = Column(Integer, nullable=True)  # 1-5 stars
-    liked_text = Column(Text, nullable=True)  # free text about what they liked
-    liked_chips = Column(JSON, nullable=True)  # selected chips for liked
-    disliked_text = Column(Text, nullable=True)  # free text about what they didn't like
-    disliked_chips = Column(JSON, nullable=True)  # selected chips for disliked
-    additional_feedback = Column(Text, nullable=True)  # "Tell us more" section
-    
-    # Metadata
-    submitted_at = Column(DateTime(timezone=True), server_default=func.now())
-    ip_address = Column(String(45), nullable=True)  # for analytics (optional)
-    user_agent = Column(Text, nullable=True)  # for analytics (optional)
+# This model is now obsolete and replaced by the generic Feedback model in app/core/models.py
+# class Feedback(Base):
+#     __tablename__ = 'feedback'
+
+#     id = Column(Integer, primary_key=True, index=True)
+#     user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
+#     session_id = Column(String, ForeignKey('values_sessions.session_id'), nullable=False)
+#     rating = Column(Integer)
+#     liked_text = Column(String)
+#     liked_chips = Column(JSON)
+#     disliked_text = Column(String)
+#     disliked_chips = Column(JSON)
+#     additional_feedback = Column(String)
+#     created_at = Column(DateTime, server_default=func.now())
+
+#     user = relationship("User")
+#     session = relationship("ValuesSession", back_populates="feedback")

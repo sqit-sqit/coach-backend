@@ -4,14 +4,14 @@ from app.modules.values import router as values_router
 from app.modules.hd import router as hd_router
 from app.modules.spiral import router as spiral_router
 from app.modules.admin import router as admin_router
-from app.routers import auth
+from app.routers import auth, feedback
 import subprocess
 import sys
 import os
 
 # Import models for Alembic to detect them
-from app.core.models import User, AppSession, UserApp
-from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary, Feedback
+from app.core.models import User, AppSession, UserApp, Feedback
+from app.modules.values.models import ValuesSession, ValuesChatMessage, ValuesSummary
 from app.modules.hd.models import HDSession, HDChatMessage, HDSummary
 from app.modules.spiral.models import SpiralSession, SpiralChatMessage, SpiralSummary
 
@@ -63,3 +63,4 @@ app.include_router(hd_router.router, prefix="/hd", tags=["hd"])
 app.include_router(spiral_router.router, prefix="/spiral", tags=["spiral"])
 app.include_router(auth.router, tags=["auth"])
 app.include_router(admin_router.router, tags=["admin"])
+app.include_router(feedback.router, prefix="/feedback", tags=["feedback"])

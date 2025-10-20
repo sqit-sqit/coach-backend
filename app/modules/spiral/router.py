@@ -8,6 +8,7 @@ from app.modules.spiral.schemas import (
     SpiralChatMessage, SpiralSummaryCreate, SpiralSessionData
 )
 from app.modules.spiral.service import SpiralService
+from app.modules.spiral.service_chat_simple import generate_spiral_summary as generate_summary_func
 from app.modules.spiral import chat_router
 import uuid
 from datetime import datetime
@@ -128,6 +129,25 @@ async def get_user_spiral_sessions(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving user sessions: {str(e)}")
 
+@router.post("/sessions/{session_id}/summary")
+async def generate_spiral_summary(
+    session_id: str,
+    db: Session = Depends(get_db)
+):
+    """Generate and persist a spiral session summary, and append it as an assistant message."""
+    try:
+        service = SpiralService(db)
+        session = service.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Spiral session not found")
+
+        summary_text = service.generate_and_save_summary(session_id)
+        return {"summary": summary_text}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating spiral summary: {str(e)}")
+
 @router.post("/sessions/{session_id}/complete")
 async def complete_spiral_session(
     session_id: str,
@@ -151,3 +171,36 @@ async def complete_spiral_session(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error completing session: {str(e)}")
+
+@router.post("/summary/generate")
+async def generate_summary(
+    request: dict,
+    db: Session = Depends(get_db)
+):
+    """Generate a summary for a spiral session"""
+    try:
+        session_id = request.get("session_id")
+        initial_problem = request.get("initial_problem")
+        user_messages = request.get("user_messages", [])
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+        
+        # Verify session exists
+        session = db.query(SpiralSession).filter(SpiralSession.session_id == session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Spiral session not found")
+        
+        # Generate summary
+        summary = generate_summary_func(
+            session_id=session_id,
+            initial_problem=initial_problem,
+            user_messages=user_messages
+        )
+        
+        return {"summary": summary}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating summary: {str(e)}")

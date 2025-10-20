@@ -9,7 +9,7 @@ class HDSession(Base):
     __tablename__ = "hd_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
     session_id = Column(String(255), nullable=False, unique=True, index=True)
     
     # Birth data
@@ -55,6 +55,7 @@ class HDSession(Base):
     status = Column(String(20), default="active")  # 'active', 'completed'
     
     # Relationships
+    user = relationship("User", back_populates="hd_sessions")
     chat_messages = relationship("HDChatMessage", back_populates="session", cascade="all, delete-orphan")
     summary = relationship("HDSummary", back_populates="session", uselist=False)
 

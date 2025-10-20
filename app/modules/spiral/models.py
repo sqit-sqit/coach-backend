@@ -9,7 +9,7 @@ class SpiralSession(Base):
     __tablename__ = "spiral_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(String(255), nullable=False, index=True)
+    user_id = Column(String, ForeignKey('users.user_id'), nullable=False)
     session_id = Column(String(255), nullable=False, unique=True, index=True)
     initial_problem = Column(Text, nullable=True)  # The problem/challenge user wants to explore
     current_cycle = Column(Integer, default=1)  # Which cycle they're in (1, 2, 3, etc.)
@@ -18,6 +18,7 @@ class SpiralSession(Base):
     status = Column(String(20), default="active")  # 'active', 'completed'
     
     # Relationships
+    user = relationship("User", back_populates="spiral_sessions")
     chat_messages = relationship("SpiralChatMessage", back_populates="session", cascade="all, delete-orphan")
     summary = relationship("SpiralSummary", back_populates="session", uselist=False)
 

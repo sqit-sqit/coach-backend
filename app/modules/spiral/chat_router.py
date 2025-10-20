@@ -13,9 +13,11 @@ router = APIRouter(prefix="/chat", tags=["spiral chat"])
 class ChatRequest(BaseModel):
     message: str
     history: list[dict] = []
+    lang: str | None = None
 
 class ChatInitRequest(BaseModel):
     session_id: str
+    lang: str | None = None
 
 @router.post("/")
 async def init_spiral_chat(
@@ -35,7 +37,8 @@ async def init_spiral_chat(
             history=[],
             initial_problem=spiral_session.initial_problem,
             current_cycle=spiral_session.current_cycle,
-            user_id=spiral_session.user_id
+            user_id=spiral_session.user_id,
+            lang=(request.lang or "pl")
         )
         
         # Save the initial AI message
@@ -68,16 +71,48 @@ async def stream_spiral_chat(
         if not spiral_session:
             raise HTTPException(status_code=404, detail="Spiral session not found")
 
+        # Save user message first
+        save_chat_message(
+            db=db,
+            session_id=session_id,
+            role="user",
+            content=request.message
+        )
+
         # Stream AI response using simple service
-        generator = stream_chat_with_spiral_ai(
+        ai_generator = stream_chat_with_spiral_ai(
             user_message=request.message,
             history=request.history,
             initial_problem=spiral_session.initial_problem,
             current_cycle=spiral_session.current_cycle,
-            user_id=spiral_session.user_id
+            user_id=spiral_session.user_id,
+            lang=(request.lang or "pl")
         )
-        
-        return StreamingResponse(generator, media_type="text/event-stream")
+
+        # Wrap chunks as proper Server-Sent Events and disable buffering
+        def sse_generator():
+            full_response = ""
+            for chunk in ai_generator:
+                if chunk:
+                    full_response += chunk
+                    yield f"data: {chunk}\n\n"
+            
+            # Save the complete AI response
+            if full_response:
+                save_chat_message(
+                    db=db,
+                    session_id=session_id,
+                    role="assistant",
+                    content=full_response
+                )
+
+        headers = {
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+
+        return StreamingResponse(sse_generator(), media_type="text/event-stream", headers=headers)
     except HTTPException as e:
         raise e
     except Exception as e:
