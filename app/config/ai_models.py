@@ -1,6 +1,7 @@
 """
 AI Model Configuration for Mini-Apps
 Edit this file to change AI models for each app.
+Last updated: 2025-10-19 17:29:14
 """
 from datetime import datetime
 
@@ -10,12 +11,6 @@ AI_MODELS = {
         "temperature": 0.7,
         "max_tokens": None,
         "description": "Values Workshop - empathetic coaching"
-    },
-    "values_chat": {
-        "model": "gpt-4o-mini",
-        "temperature": 0.7,
-        "max_tokens": None,
-        "description": "Values Chat - empathetic coaching"
     },
     "hd_chat": {
         "model": "gpt-4o-mini",
@@ -29,6 +24,12 @@ AI_MODELS = {
         "max_tokens": None,
         "description": "Growth Path - future planning"
     },
+    "spiral_chat": {
+        "model": "gpt-4o-mini",
+        "temperature": 0.7,
+        "max_tokens": None,
+        "description": "Spiral Method - deep reflection guidance"
+    }
 }
 
 # Fallback jeśli apka nie ma konfiguracji
@@ -44,18 +45,12 @@ def get_model_config(app_name: str) -> dict:
 
 # Dostępne modele OpenAI (dla referencji)
 AVAILABLE_MODELS = [
-    # Auto Selection
-    "auto",             # Automatyczny wybór najlepszego modelu
-    
-    # GPT-5 Series (Najnowsze)
-    "gpt-5",            # Główna wersja GPT-5 - mocny model ogólnego zastosowania
-    "gpt-5-chat",       # Zoptymalizowana pod interakcje konwersacyjne / chat
-    "gpt-5-mini",       # Lżejsza, ekonomiczna wersja GPT-5
-    "gpt-5-pro",        # Zaawansowany wariant do głębokiego rozumowania
-    
-    # GPT-4o Series
-    "gpt-4o-mini",      # Rekomendowany - najlepszy stosunek jakości do ceny
-    "gpt-4o",           # Premium - najwyższa jakość
-    "gpt-4-turbo",      # Poprzednia generacja turbo
+    "auto",
+    "gpt-5",
+    "gpt-5-chat",
+    "gpt-5-mini",
+    "gpt-5-pro",
+    "gpt-4o-mini",
+    "gpt-4o",
+    "gpt-4-turbo"
 ]
-

@@ -18,6 +18,7 @@ load_dotenv()
 from app.core.models import Base as CoreBase
 from app.modules.values.models import Base as ValuesBase
 from app.modules.hd.models import Base as HDBase
+from app.modules.spiral.models import Base as SpiralBase
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -35,9 +36,11 @@ config.set_main_option("sqlalchemy.url", get_database_url())
 # Combine metadata from all models - CORRECT VERSION
 from sqlalchemy import MetaData
 target_metadata = MetaData()
-# Add all tables from both bases
+# Add all tables from all bases
 target_metadata = CoreBase.metadata
 target_metadata = ValuesBase.metadata
+target_metadata = HDBase.metadata
+target_metadata = SpiralBase.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

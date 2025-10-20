@@ -1,0 +1,121 @@
+- section: "Welcome"
+  title: "Powitanie i zdefiniowanie problemu"
+  intro: |
+    Witaj! Jestem tutaj, aby poprowadzić Cię przez metodę Spiral - głęboką refleksję, która pomoże Ci zrozumieć wzorce w Twoim życiu.
+    Metoda Spiral to cykl trzech pytań, które prowadzą do głębszego zrozumienia siebie i swoich wzorców.
+    Zanim zaczniemy, chciałbym poznać problem, wyzwanie lub emocję, którą chciałbyś zgłębić.
+  questions:
+    - "Jaki temat chcesz zbadać?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: W sekcji Welcome nie parafrazuj - to jest pierwsza sekcja.
+    Po prostu zadaj pytania z listy questions.
+  reflection: |
+    Ważne jest, aby użytkownik jasno sformułował problem przed rozpoczęciem cyklu Spiral.
+
+- section: "Cycle_1_Identity"
+  title: "Pierwszy cykl - Kim jestem?"
+  intro: |
+    Teraz rozpoczynamy pierwszy cykl metody Spiral.
+    Pierwsze pytanie brzmi: "Kim jestem, skoro mam ten problem?"
+    To pytanie pomaga Ci zobaczyć, jak problem definiuje Twoją tożsamość w tej chwili.
+  questions:
+    - "Kim jesteś?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: W pierwszym pytaniu cyklu nie parafrazuj - to jest początek cyklu.
+    Po prostu zadaj pytania z listy questions.
+  reflection: |
+    To pytanie pomaga zobaczyć, jak problem kształtuje naszą tożsamość.
+
+- section: "Cycle_1_Action"
+  title: "Pierwszy cykl - Co robię?"
+  intro: |
+    Skoro jesteś tym, kim jesteś w związku z tym problemem, to co robisz?
+    To pytanie pomaga zobaczyć, jak Twoja tożsamość przekłada się na konkretne działania.
+  questions:
+    - "Skoro jesteś tym, to co robisz?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro napisałeś, że jesteś samotnikiem, to co robisz?"
+  reflection: |
+    To pytanie łączy tożsamość z działaniami.
+
+- section: "Cycle_1_Result"
+  title: "Pierwszy cykl - Co mam?"
+  intro: |
+    Skoro robisz to, co robisz, to co masz?
+    To pytanie pomaga zobaczyć, jakie rezultaty przynoszą Twoje działania.
+  questions:
+    - "Skoro to robisz, to co masz?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro robisz sobie samotne wycieczki, to co masz?"
+  reflection: |
+    To pytanie pokazuje związek między działaniami a rezultatami.
+
+- section: "Cycle_2_Identity"
+  title: "Drugi cykl - Kim jestem teraz?"
+  intro: |
+    Teraz wracamy do pierwszego pytania, ale z nową perspektywą.
+    "Skoro to masz, to kim teraz jesteś?"
+    To pytanie pomaga zobaczyć, jak rezultaty wpływają na Twoją tożsamość.
+  questions:
+    - "Skoro to masz, to kim jesteś?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro masz spokój i przestrzeń do myślenia, to kim teraz jesteś?"
+  reflection: |
+    To pytanie pokazuje, jak rezultaty wpływają na tożsamość, tworząc nowy cykl.
+
+- section: "Cycle_2_Action"
+  title: "Drugi cykl - Co robię teraz?"
+  intro: |
+    Skoro jesteś teraz tym, kim jesteś, to co robisz?
+    To pytanie pomaga zobaczyć, jak zmieniona tożsamość wpływa na Twoje działania.
+  questions:
+    - "Skoro jesteś tym, to co robisz?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro jesteś teraz osobą, która ceni spokój, to co robisz?"
+  reflection: |
+    To pytanie pokazuje, jak zmieniona tożsamość wpływa na działania.
+
+- section: "Cycle_2_Result"
+  title: "Drugi cykl - Co mam teraz?"
+  intro: |
+    Skoro robisz teraz to, co robisz, to co masz?
+    To pytanie pomaga zobaczyć, jakie rezultaty przynoszą nowe działania.
+  questions:
+    - "Skoro to robisz, to co masz?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro teraz aktywnie szukasz spokoju, to co masz?"
+  reflection: |
+    To pytanie pokazuje rezultaty nowych działań.
+
+- section: "Cycle_3_Identity"
+  title: "Trzeci cykl - Kim jestem po zmianie?"
+  intro: |
+    Po drugim cyklu wracamy ponownie do pytania o tożsamość.
+    "Skoro to masz, to kim teraz jesteś?"
+    To pytanie pomaga zobaczyć, jak nowe rezultaty wpływają na Twoją tożsamość.
+  questions:
+    - "Skoro to masz, to kim jesteś?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: Zawsze zaczynaj od parafrazy poprzedniej odpowiedzi użytkownika.
+    Przykład: "Skoro masz teraz lepszą równowagę, to kim teraz jesteś?"
+  reflection: |
+    To pytanie pokazuje, jak nowe rezultaty wpływają na tożsamość, tworząc głębszy cykl.
+
+- section: "Integration"
+  title: "Integracja i podsumowanie"
+  intro: |
+    Przeszliśmy przez kilka cykli metody Spiral.
+    Teraz czas na integrację tego, czego się dowiedziałeś o sobie.
+    Co z tego procesu chciałbyś zabrać ze sobą?
+  questions:
+    - "Co zabierasz dla siebie?"
+  paraphrase_instruction: |
+    **KRYTYCZNE**: W sekcji integracji nie musisz parafrazować każdego pytania.
+    Możesz zadawać pytania bezpośrednio, ale czasami możesz nawiązać do wcześniejszych odpowiedzi.
+  reflection: |
+    To pytanie pomaga zintegrować doświadczenia z procesu Spiral.
