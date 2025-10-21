@@ -26,11 +26,11 @@ class HDChatService(BaseChatService):
     
     def _get_start_message(self) -> str:
         """Wiadomość startowa dla HD chat."""
-        return "Start the Human Design conversation. Begin with an introduction about my chart."
+        return "Rozpocznij rozmowę o Human Design. Zacznij od krótkiego powitania i zapytaj, co chciałbym zgłębić."
     
     def _load_personality(self, context_data: dict) -> str:
         """Ładuje personality HD z danymi użytkownika."""
-        return load_hd_personality(context_data)
+        return load_hd_personality(context_data, lang="pl")
     
     def _save_user_message(self, user_message: str, user_id: str, context_data: dict):
         """Zapisuje wiadomość użytkownika do bazy HD."""
@@ -92,15 +92,17 @@ class HDChatService(BaseChatService):
 
 
 # 🔹 Wczytywanie pliku osobowości HD
-def load_hd_personality(hd_data: dict) -> str:
+def load_hd_personality(hd_data: dict, lang: str = "pl") -> str:
     """
     Ładuje osobowość HD z pliku i podstawia dane użytkownika.
     """
     base_dir = Path(__file__).resolve().parents[2] / "personality"
-    file_path = base_dir / "hd_personality_chat.txt"
+    # Wybierz plik językowy, domyślnie polski
+    filename = "hd_personality_chat.en.txt" if lang == "en" else "hd_personality_chat.pl.txt"
+    file_path = base_dir / filename
 
     if not file_path.exists():
-        return "You are a helpful Human Design AI assistant."
+        return "Jesteś pomocnym asystentem AI Human Design." if lang == "pl" else "You are a helpful Human Design AI assistant."
 
     raw = file_path.read_text(encoding="utf-8")
     
