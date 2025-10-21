@@ -8,6 +8,59 @@ from app.core.database import get_db
 from sqlalchemy.orm import Session
 from app.modules.hd.hd_calculator import compute_hd_chart
 
+def translate_hd_terms_to_polish(data: Dict) -> Dict:
+    """Translate Human Design terms from English to Polish"""
+    
+    # Type translations
+    type_translations = {
+        "Generator": "Generator",
+        "Manifesting Generator": "Manifestujący Generator", 
+        "Manifestor": "Manifestor",
+        "Projector": "Projektor",
+        "Reflector": "Reflektor"
+    }
+    
+    # Strategy translations
+    strategy_translations = {
+        "To Respond": "Reagować",
+        "To Inform": "Informować",
+        "To Wait for Invitation": "Czekać na zaproszenie",
+        "To Wait a Lunar Cycle": "Czekać na cykl księżycowy"
+    }
+    
+    # Authority translations
+    authority_translations = {
+        "Sacral": "Sakralny",
+        "Solar Plexus": "Splot słoneczny",
+        "Spleen": "Śledziona", 
+        "Heart": "Serce",
+        "G": "G",
+        "Throat": "Gardło",
+        "Ajna": "Ajna",
+        "Head": "Głowa",
+        "Mental": "Mentalny",
+        "Emotional": "Emocjonalny",
+        "Splenic": "Śledzionowy",
+        "Ego": "Ego"
+    }
+    
+    # Create a copy of the data to avoid modifying the original
+    translated_data = data.copy()
+    
+    # Translate type
+    if "type" in translated_data:
+        translated_data["type"] = type_translations.get(translated_data["type"], translated_data["type"])
+    
+    # Translate strategy
+    if "strategy" in translated_data:
+        translated_data["strategy"] = strategy_translations.get(translated_data["strategy"], translated_data["strategy"])
+    
+    # Translate authority
+    if "authority" in translated_data:
+        translated_data["authority"] = authority_translations.get(translated_data["authority"], translated_data["authority"])
+    
+    return translated_data
+
 class HumanDesignCalculator:
     """Calculator for Human Design charts using Swiss Ephemeris"""
     

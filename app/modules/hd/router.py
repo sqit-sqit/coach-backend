@@ -203,23 +203,29 @@ def calculate_hd_chart(request: schemas.HDChartRequest):
         # Save to database
         session = service.save_hd_session_to_db(request.user_id, session_data)
         
-        return schemas.HDChartResponse(
-            session_id=session.session_id,
-            type=session.type,
-            strategy=session.strategy,
-            authority=session.authority,
-            profile=session.profile,
-            sun_gate=session.sun_gate,
-            earth_gate=session.earth_gate,
-            moon_gate=session.moon_gate,
-            north_node_gate=session.north_node_gate,
-            south_node_gate=session.south_node_gate,
-            defined_centers=session.defined_centers or [],
-            undefined_centers=session.undefined_centers or [],
-            defined_channels=session.defined_channels or [],
-            active_gates=session.active_gates or [],
-            activations=session.activations or []
-        )
+        # Create response data dict for translation
+        response_data = {
+            "session_id": session.session_id,
+            "type": session.type,
+            "strategy": session.strategy,
+            "authority": session.authority,
+            "profile": session.profile,
+            "sun_gate": session.sun_gate,
+            "earth_gate": session.earth_gate,
+            "moon_gate": session.moon_gate,
+            "north_node_gate": session.north_node_gate,
+            "south_node_gate": session.south_node_gate,
+            "defined_centers": session.defined_centers or [],
+            "undefined_centers": session.undefined_centers or [],
+            "defined_channels": session.defined_channels or [],
+            "active_gates": session.active_gates or [],
+            "activations": session.activations or []
+        }
+        
+        # Apply Polish translations
+        translated_data = service.translate_hd_terms_to_polish(response_data)
+        
+        return schemas.HDChartResponse(**translated_data)
         
     except Exception as e:
         print(f"❌ HD Calculation failed: {str(e)}")
@@ -262,35 +268,41 @@ def get_hd_chart(session_id: str):
         except Exception as e:
             print(f"WARN: could not backfill activations: {e}")
     
-    return schemas.HDSessionData(
-        session_id=session.session_id,
-        user_id=session.user_id,
-        name=session.name,
-        birth_date=session.birth_date,
-        birth_time=session.birth_time,
-        birth_place=session.birth_place,
-        birth_lat=session.birth_lat,
-        birth_lng=session.birth_lng,
-        zodiac_system=session.zodiac_system,
-        calculation_method=session.calculation_method,
-        type=session.type,
-        strategy=session.strategy,
-        authority=session.authority,
-        profile=session.profile,
-        sun_gate=session.sun_gate,
-        earth_gate=session.earth_gate,
-        moon_gate=session.moon_gate,
-        north_node_gate=session.north_node_gate,
-        south_node_gate=session.south_node_gate,
-        defined_centers=session.defined_centers or [],
-        undefined_centers=session.undefined_centers or [],
-        defined_channels=session.defined_channels or [],
-        active_gates=session.active_gates or [],
-        activations=session.activations or [],
-        status=session.status,
-        started_at=session.started_at.isoformat(),
-        ended_at=session.ended_at.isoformat() if session.ended_at else None
-    )
+    # Create session data dict for translation
+    session_data = {
+        "session_id": session.session_id,
+        "user_id": session.user_id,
+        "name": session.name,
+        "birth_date": session.birth_date,
+        "birth_time": session.birth_time,
+        "birth_place": session.birth_place,
+        "birth_lat": session.birth_lat,
+        "birth_lng": session.birth_lng,
+        "zodiac_system": session.zodiac_system,
+        "calculation_method": session.calculation_method,
+        "type": session.type,
+        "strategy": session.strategy,
+        "authority": session.authority,
+        "profile": session.profile,
+        "sun_gate": session.sun_gate,
+        "earth_gate": session.earth_gate,
+        "moon_gate": session.moon_gate,
+        "north_node_gate": session.north_node_gate,
+        "south_node_gate": session.south_node_gate,
+        "defined_centers": session.defined_centers or [],
+        "undefined_centers": session.undefined_centers or [],
+        "defined_channels": session.defined_channels or [],
+        "active_gates": session.active_gates or [],
+        "activations": session.activations or [],
+        "status": session.status,
+        "started_at": session.started_at.isoformat(),
+        "ended_at": session.ended_at.isoformat() if session.ended_at else None
+    }
+    
+    # Apply Polish translations
+    translated_data = service.translate_hd_terms_to_polish(session_data)
+    
+    return schemas.HDSessionData(**translated_data)
 
 @router.post("/chart/{session_id}/regenerate")
 def regenerate_hd_chart(session_id: str, request: schemas.HDChartRequest):
@@ -375,23 +387,29 @@ def regenerate_hd_chart(session_id: str, request: schemas.HDChartRequest):
             db.commit()
             db.refresh(existing_session)
             
-            return schemas.HDChartResponse(
-                session_id=existing_session.session_id,
-                type=existing_session.type,
-                strategy=existing_session.strategy,
-                authority=existing_session.authority,
-                profile=existing_session.profile,
-                sun_gate=existing_session.sun_gate,
-                earth_gate=existing_session.earth_gate,
-                moon_gate=existing_session.moon_gate,
-                north_node_gate=existing_session.north_node_gate,
-                south_node_gate=existing_session.south_node_gate,
-                defined_centers=existing_session.defined_centers,
-                undefined_centers=existing_session.undefined_centers,
-                defined_channels=existing_session.defined_channels,
-                active_gates=existing_session.active_gates or [],
-                activations=existing_session.activations or []
-            )
+            # Create response data dict for translation
+            response_data = {
+                "session_id": existing_session.session_id,
+                "type": existing_session.type,
+                "strategy": existing_session.strategy,
+                "authority": existing_session.authority,
+                "profile": existing_session.profile,
+                "sun_gate": existing_session.sun_gate,
+                "earth_gate": existing_session.earth_gate,
+                "moon_gate": existing_session.moon_gate,
+                "north_node_gate": existing_session.north_node_gate,
+                "south_node_gate": existing_session.south_node_gate,
+                "defined_centers": existing_session.defined_centers,
+                "undefined_centers": existing_session.undefined_centers,
+                "defined_channels": existing_session.defined_channels,
+                "active_gates": existing_session.active_gates or [],
+                "activations": existing_session.activations or []
+            }
+            
+            # Apply Polish translations
+            translated_data = service.translate_hd_terms_to_polish(response_data)
+            
+            return schemas.HDChartResponse(**translated_data)
         finally:
             db.close()
             
