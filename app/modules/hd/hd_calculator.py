@@ -186,7 +186,7 @@ CHANNELS: Dict[Tuple[int, int], Tuple[str, str]] = {
     (20,34):("Throat","Sacral"),(20,57):("Throat","Spleen"),(21,45):("Ego","Throat"),(23,43):("Throat","Ajna"),
     (24,61):("Ajna","Head"),(25,51):("G","Ego"),(26,44):("Ego","Spleen"),(27,50):("Sacral","Spleen"),
     (28,38):("Spleen","Root"),(29,46):("Sacral","G"),(30,41):("Solar Plexus","Root"),(32,54):("Spleen","Root"),
-    (35,36):("Throat","Solar Plexus"),(37,40):("Solar Plexus","Ego"),(39,55):("Root","Solar Plexus"),(42,53):("Sacral","Root"),
+    (34,57):("Sacral","Spleen"),(35,36):("Throat","Solar Plexus"),(37,40):("Solar Plexus","Ego"),(39,55):("Root","Solar Plexus"),(42,53):("Sacral","Root"),
     (47,64):("Ajna","Head"),
 }
 # Include reverse mapping for convenience
